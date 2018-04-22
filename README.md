@@ -1,3 +1,1 @@
 # QuantNN
-
-Hello World!
