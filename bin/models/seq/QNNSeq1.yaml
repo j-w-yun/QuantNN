@@ -1,0 +1,61 @@
+model: QNNSeq1
+parameters:
+  input_sequence_length:
+    _type: IntParameter
+    v: 20
+  ml_model:
+    _type: ModelChoiceParameter
+    allow_empty: false
+    choices:
+      EncoderDecoderModel:
+        parameters:
+          batch_size:
+            _type: IntParameter
+            v: 128
+          decoder_dropout_keep_prob:
+            _type: FloatParameter
+            v: 0.9
+          decoder_layers_size:
+            _type: IntParameter
+            v: 1024
+          decoder_sampling_prob:
+            _type: FloatParameter
+            v: 0.1
+          encoder_layers_size:
+            _type: IntParameter
+            v: 1024
+          epochs:
+            _type: IntParameter
+            v: 2
+          learning_rate_decay_epochs:
+            _type: IntParameter
+            v: 2
+          num_decoder_layers:
+            _type: IntParameter
+            v: 3
+          num_encoder_layers:
+            _type: IntParameter
+            v: 3
+          optimizer:
+            _type: ModelChoiceParameter
+            allow_empty: false
+            choices:
+              AdamOptimizer:
+                parameters:
+                  learning_rate_decay_epochs:
+                    _type: FloatParameter
+                    v: 2.0
+                  learning_rate_decay_rate:
+                    _type: FloatParameter
+                    v: 0.9
+                  learning_rate_init:
+                    _type: FloatParameter
+                    v: 0.0002
+                  max_gradient_norm:
+                    _type: FloatParameter
+                    v: 5.0
+            v: AdamOptimizer
+    v: EncoderDecoderModel
+  val_split:
+    _type: FloatParameter
+    v: 0.1

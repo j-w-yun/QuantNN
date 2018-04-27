@@ -1,0 +1,47 @@
+site_name: QuantNN documentation
+docs_dir: docs
+site_dir: _docs_build/site
+#site_favicon: img/favicon.png
+theme: material
+extra:
+  palette:
+    primary: 'black'
+    accent: 'light blue'
+  logo: 'img/logo_small.png'
+#  include_toc: yes
+
+pages:
+- Home: 'index.md'
+- Getting started: 'getting_started.md'
+- TODO: 'todo.md'
+- Changelog: 'changelog.md'
+- Reference:
+    - Overview: 'reference/overview.md'
+    - Python code: 'reference/python_code/overview.md'
+
+markdown_extensions:
+    - smarty
+    - toc:
+        permalink: True
+    - sane_lists
+    - math
+    - abbr
+    - footnotes
+    - tables
+    - admonition
+    - codehilite
+    - pymdownx.arithmatex
+    - pymdownx.betterem(smart_enable=all)
+    - pymdownx.caret
+    - pymdownx.critic
+    - pymdownx.emoji:
+        emoji_generator: !!python/name:pymdownx.emoji.to_svg
+    - pymdownx.inlinehilite
+    - pymdownx.magiclink
+    - pymdownx.mark
+    - pymdownx.smartsymbols
+    - pymdownx.superfences
+    - pymdownx.tasklist(custom_checkbox=true)
+    - pymdownx.tilde
+extra_javascript: ['https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML','mathjaxhelper.js']
+
