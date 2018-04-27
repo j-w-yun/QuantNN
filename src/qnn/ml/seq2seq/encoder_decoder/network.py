@@ -4,7 +4,7 @@ from tensorflow.python.layers.core import Dense
 import tensorflow as tf
 
 
-class EncoderDecoder:
+class EncoderDecoderNetwork:
 
     def __init__(self,
                  encoder_layers,
