@@ -1,0 +1,18 @@
+# Python code reference
+- **qnn** is the root package.
+    - **qnn.core** contains utilities for **datetime**, **events**, **parameters**, **ranges** and **serialization**.
+    - **qnn.db** contains database objects.
+    - [**qnn.market**](market.md) contains objects representing market structure. It also has a subpackage `qnn.market.data` that contains the MarketDataTable object.
+    - **qnn.ml** contains ML models such as seq2seq models. All ML models accept a dictionary of named numppy matrices for both input and target data.
+    - **qnn.models** contains models that operate on MarketDataTable data and a *target* object (found in `qnn.targets`). Models usually perform some data preprocessing (scaling for example) and then employ the use of on or more `qnn.ml` models to make train on data and then make predictions.
+    - **qnn.nn** contains code for Tensorflow based neural networks.
+        - **qnn.nn.networks** contains common base classes for common building neural networks with tensorflow. These are usually used in `qnn.ml` models.
+        - **qnn.nn.optimizers** contains code for optimizers for networks.
+    - **qnn.problems** contains problem definitions. Given a *problem* and a *model* (from `qnn.models`) we can construct a learning problem.
+    - **qnn.programs**
+        - **qnn.programs.scrapers**
+            - download_poloniex_bardata.py:
+        - write_defaults.py
+        - traintest_seq2seq_model.py
+    - **qnn.targets** are classes that take in `MarketDataTable` and output one or more targets or sequence of targets.
+    -  **qnn.viz** is for visualization-related code.
