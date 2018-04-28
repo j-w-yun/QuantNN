@@ -1,5 +1,6 @@
 import json
 from multiprocessing.pool import ThreadPool
+import sys
 import time
 
 from requests.exceptions import HTTPError
@@ -67,14 +68,10 @@ class Ethereum(Cacheable):
             start = latest_block_time + self.__GRANULARITY
             print('Ethereum Slice {}\t| Continuing from latest block time {}'.format(
                 self.worker_id, latest_block_time))
-        except (StartKeyNotFoundError) as e:
-            # slow and may result in disjoint data if prematurely terminated
-            print(e)
-            raise Warning('Deprecated')
-        except (StartEndKeysNotFoundError) as e:
+        except (StartKeyNotFoundError, StartEndKeysNotFoundError) as e:
             # TODO: Handle importing disjoint historical data
             print(e)
-            raise ValueError('Data is out of range')
+            sys.exit()
 
         # get latest block height
         block_num = self.get_latest_block()
@@ -195,7 +192,6 @@ class Ethereum(Cacheable):
                 row = [timestamp, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             # display progress
-#             if timestamp % 300 == 0:
             progress = 100 * (timestamp - start) / (end - start)
             print('Ethereum Slice {}\t| {:6.2f}% | {}'.format(
                 self.worker_id, progress, row))
@@ -213,8 +209,12 @@ class Ethereum(Cacheable):
         self.num_workers += 1
         return client._worker_download_data
 
-    def download_data(self, _, start, end):
-        filename = 'ethereum'
+    def download_data(self, **kwargs):
+        product = kwargs['product']
+        start = kwargs['start']
+        end = kwargs['end']
+
+        filename = product
 
         print('Ethereum Slice {}\t| Requested data from {} to {}'.format(
             self.worker_id, start, end))
@@ -237,17 +237,13 @@ class Ethereum(Cacheable):
             print('Ethereum Slice {}\t| Continuing from latest block time {}'.format(
                 self.worker_id, latest_block_time))
             data.append(self.get_cache(filename))
-        except (StartKeyNotFoundError) as e:
-            # slow and may result in disjoint data if prematurely terminated
-            print(e)
-            raise Warning('Deprecated')
-        except (StartEndKeysNotFoundError) as e:
+        except (StartKeyNotFoundError, StartEndKeysNotFoundError) as e:
             # TODO: Handle importing disjoint historical data
             print(e)
             raise ValueError('Data is out of range')
 
         # divide up work
-        interval = 90000
+        interval = 9000
         buckets = []
         slice_start = start
         slice_end = start + interval
@@ -293,9 +289,12 @@ class Ethereum(Cacheable):
 
         return filename
 
-    def get_blocks(self, _, start, end):
+    def get_blocks(self, **kwargs):
+        start = kwargs['start']
+        end = kwargs['end']
+
         # download data
-        filename = self.download_data(_, start, end)
+        filename = self.download_data(**kwargs)
 
         # return window
         return self.get_cache(filename, range_keys=(start, end - 60))
