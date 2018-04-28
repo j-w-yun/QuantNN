@@ -29,7 +29,7 @@ def test_price_seq_target():
     df = pd.DataFrame({
         'TEST.open': list(range(10)),
         'TEST.high': list(range(10)),
-        'TEST.low': list(range(10)),
+        'TEST.low': list(reversed(range(10))),
         'TEST.close': list(range(10)),
     }, dtype=np.int32)
 
@@ -46,10 +46,10 @@ def test_price_seq_target():
 
     # Verify t is what we expect as output
     expected = np.array([
-        [3, 3, 3, 3],
-        [4, 4, 4, 4],
-        [5, 5, 5, 5],
-        [6, 6, 6, 6],
+        [3, 3, 6, 3],
+        [4, 4, 5, 4],
+        [5, 5, 4, 5],
+        [6, 6, 3, 6],
     ])
 
     assert (t == expected).all()
