@@ -1,5 +1,4 @@
 import copy
-import json
 import sys
 import time
 
@@ -31,7 +30,7 @@ class Gdax(Cacheable):
                 r = requests.get(
                     self.url + path, params=payload, timeout=self.timeout)
 
-                # HTTP not ok
+                # HTTP not OK or GDAX error
                 while not r.ok or 'message' in r:
                     print('GDAX | {}'.format(r))
                     time.sleep(3 * retries)

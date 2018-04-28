@@ -39,14 +39,6 @@ class Cacheable:
             except FileExistsError:
                 pass
 
-#     def get_cwd(self):
-#         cwd = os.getcwd()
-#         return '{}\\{}'.format(cwd, self.save_directory)
-
-#     def get_filepath(self, filename):
-#         cwd = os.getcwd()
-#         return '{}\\{}\\{}.txt'.format(cwd, self.save_directory, filename)
-
     def cache_exists(self, filename):
         try:
             filepath = '{}/{}.txt'.format(self.save_directory, filename)
