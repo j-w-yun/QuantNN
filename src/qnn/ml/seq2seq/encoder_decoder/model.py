@@ -67,10 +67,12 @@ class EncoderDecoderModel(ISeq2SeqModel):
 
         input = list(inputs.values())[0]
         target = list(targets.values())[0]
+        self._target_key = list(targets.keys())[0]
         val_target = list(val_targets.values())[0] if val_targets is not None else None
 
         input_seq_len, input_depth = input.shape[1], input.shape[2]
         target_seq_len, target_depth = target.shape[1], target.shape[2]
+        self._target_seq_len, self._target_depth = target_seq_len, target_depth
 
         num_train = input.shape[0]
         num_train_batches = int(np.ceil(num_train / self._batch_size))
@@ -191,5 +193,11 @@ class EncoderDecoderModel(ISeq2SeqModel):
             self._network.extra_values = extra_values_test
 
     def predict(self, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        extra_feed_dict_kwargs = {
+            list(self._target_placeholders.values())[0]: np.zeros((list(inputs.values())[0].shape[0], self._target_seq_len, self._target_depth)),
+        }
+
         with self._sess.as_default():
-            return self._network.query(inputs)
+            return {
+                self._target_key: self._network.query(inputs, extra_feed_dict_kwargs=extra_feed_dict_kwargs),
+            }

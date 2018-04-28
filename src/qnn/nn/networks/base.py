@@ -174,8 +174,10 @@ class Network(object):
 
         return self.sess.run(self.loss, feed_dict=feed_dict)
 
-    def query(self, inputs: dict):
+    def query(self, inputs: dict, extra_feed_dict_kwargs=None):
         feed_dict = copy.copy(self.extra_values)
+        if extra_feed_dict_kwargs is not None:
+            feed_dict.update(extra_feed_dict_kwargs)
         for k, v in inputs.items():
             feed_dict[self._placeholders[str(k)]] = v
 

@@ -6,6 +6,8 @@ import os
 import sys
 import logging
 
+import numpy as np
+
 from qnn import settings
 from qnn.core.serialization import load_dict_from_yaml_file
 from qnn.core.parameters import ParametersNode
@@ -50,6 +52,7 @@ def main():
     # Find index ranges for train and test sets
     train_index_range = find_index_range(market_data_table.index, problem.train_range)
     test_index_range = find_index_range(market_data_table.index, problem.test_range)
+    test_index_range.end -= problem.target_seqlen
 
     # Create ML model
     logger.info('Creating model...')
@@ -65,16 +68,24 @@ def main():
     predictions_map = model.predict(data, test_index_range)
     predictions = [predictions_map[k] for k in target.output_keys]
 
-    for i in range(test_index_range.begin, test_index_range.end):
+    rmse_mean = 0.0
+    rmse_n = 0
+    for prediction_index, i in enumerate(range(test_index_range.begin, test_index_range.end)):
         targets = target.generate_target(market_data_table, i)
 
-        for prediction, target_seq, target_key in zip(predictions, targets, target.output_keys):
-            predicted_seq = prediction[i]
+        for prediction, target_seq, target_key, target_output_shape in zip(predictions, targets, target.output_keys, target.output_shapes):
+            predicted_seq = prediction[prediction_index]
 
-            # TODO
-            pass
+            # Turn target into numpy array
+            target_seq = np.reshape(target_seq, newshape=target_output_shape)
 
-        # TODO
+            # Compute rmse for this sequence forecast
+            rmse = np.sqrt((predicted_seq - target_seq) ** 2).mean()
+
+            rmse_mean += rmse
+            rmse_n += 1
+
+    print('Test set RMSE (using mean of all targets and predictions): %g (n=%d)' % ((rmse_mean / rmse_n), rmse_n))
 
 
 if __name__ == '__main__':
