@@ -1,5 +1,6 @@
 import copy
 import json
+import sys
 import time
 
 import requests
@@ -9,6 +10,77 @@ from cacheable import Cacheable, StartKeyNotFoundError, EndKeyNotFoundError,\
 import dataset_list
 import helper
 
+
+# QUOTE_VOLUME = 'quoteVolume'
+# AVERAGE = 'average'
+# BUY_BASE_VOLUME = 'buyBaseVolume'
+# BUY_QUOTE_VOLUME = 'buyQuoteVolume'
+
+# BINA_CHART = 'bina_chart'
+
+# BINA_CHART: [TIME,
+#              LOW,
+#              HIGH,
+#              OPEN,
+#              CLOSE,
+#              VOLUME,
+#              QUOTE_VOLUME,
+#              NUM_TRADES,
+#              BUY_BASE_VOLUME,
+#              BUY_QUOTE_VOLUME,
+#              IS_CARRIED],
+
+# BINA_CHART: ['ETHBTC', 'LTCBTC', 'BNBBTC', 'NEOBTC', 'QTUMETH', 'EOSETH',
+#              'SNTETH', 'BNTETH', 'BCCBTC', 'GASBTC', 'BNBETH', 'BTCUSDT',
+#              'ETHUSDT', 'HSRBTC', 'OAXETH', 'DNTETH', 'MCOETH', 'ICNETH',
+#              'MCOBTC', 'WTCBTC', 'WTCETH', 'LRCBTC', 'LRCETH', 'QTUMBTC',
+#              'YOYOBTC', 'OMGBTC', 'OMGETH', 'ZRXBTC', 'ZRXETH',
+#              'STRATBTC', 'STRATETH', 'SNGLSBTC', 'SNGLSETH', 'BQXBTC',
+#              'BQXETH', 'KNCBTC', 'KNCETH', 'FUNBTC', 'FUNETH', 'SNMBTC',
+#              'SNMETH', 'NEOETH', 'IOTABTC', 'IOTAETH', 'LINKBTC',
+#              'LINKETH', 'XVGBTC', 'XVGETH', 'CTRBTC', 'CTRETH', 'SALTBTC',
+#              'SALTETH', 'MDABTC', 'MDAETH', 'MTLBTC', 'MTLETH', 'SUBBTC',
+#              'SUBETH', 'EOSBTC', 'SNTBTC', 'ETCETH', 'ETCBTC', 'MTHBTC',
+#              'MTHETH', 'ENGBTC', 'ENGETH', 'DNTBTC', 'ZECBTC', 'ZECETH',
+#              'BNTBTC', 'ASTBTC', 'ASTETH', 'DASHBTC', 'DASHETH', 'OAXBTC',
+#              'ICNBTC', 'BTGBTC', 'BTGETH', 'EVXBTC', 'EVXETH', 'REQBTC',
+#              'REQETH', 'VIBBTC', 'VIBETH', 'HSRETH', 'TRXBTC', 'TRXETH',
+#              'POWRBTC', 'POWRETH', 'ARKBTC', 'ARKETH', 'YOYOETH',
+#              'XRPBTC', 'XRPETH', 'MODBTC', 'MODETH', 'ENJBTC', 'ENJETH',
+#              'STORJBTC', 'STORJETH', 'BNBUSDT', 'VENBNB', 'YOYOBNB',
+#              'POWRBNB', 'VENBTC', 'VENETH', 'KMDBTC', 'KMDETH', 'NULSBNB',
+#              'RCNBTC', 'RCNETH', 'RCNBNB', 'NULSBTC', 'NULSETH', 'RDNBTC',
+#              'RDNETH', 'RDNBNB', 'XMRBTC', 'XMRETH', 'DLTBNB', 'WTCBNB',
+#              'DLTBTC', 'DLTETH', 'AMBBTC', 'AMBETH', 'AMBBNB', 'BCCETH',
+#              'BCCUSDT', 'BCCBNB', 'BATBTC', 'BATETH', 'BATBNB', 'BCPTBTC',
+#              'BCPTETH', 'BCPTBNB', 'ARNBTC', 'ARNETH', 'GVTBTC', 'GVTETH',
+#              'CDTBTC', 'CDTETH', 'GXSBTC', 'GXSETH', 'NEOUSDT', 'NEOBNB',
+#              'POEBTC', 'POEETH', 'QSPBTC', 'QSPETH', 'QSPBNB', 'BTSBTC',
+#              'BTSETH', 'BTSBNB', 'XZCBTC', 'XZCETH', 'XZCBNB', 'LSKBTC',
+#              'LSKETH', 'LSKBNB', 'TNTBTC', 'TNTETH', 'FUELBTC', 'FUELETH',
+#              'MANABTC', 'MANAETH', 'BCDBTC', 'BCDETH', 'DGDBTC', 'DGDETH',
+#              'IOTABNB', 'ADXBTC', 'ADXETH', 'ADXBNB', 'ADABTC', 'ADAETH',
+#              'PPTBTC', 'PPTETH', 'CMTBTC', 'CMTETH', 'CMTBNB', 'XLMBTC',
+#              'XLMETH', 'XLMBNB', 'CNDBTC', 'CNDETH', 'CNDBNB', 'LENDBTC',
+#              'LENDETH', 'WABIBTC', 'WABIETH', 'WABIBNB', 'LTCETH',
+#              'LTCUSDT', 'LTCBNB', 'TNBBTC', 'TNBETH', 'WAVESBTC',
+#              'WAVESETH', 'WAVESBNB', 'GTOBTC', 'GTOETH', 'GTOBNB',
+#              'ICXBTC', 'ICXETH', 'ICXBNB', 'OSTBTC', 'OSTETH', 'OSTBNB',
+#              'ELFBTC', 'ELFETH', 'AIONBTC', 'AIONETH', 'AIONBNB',
+#              'NEBLBTC', 'NEBLETH', 'NEBLBNB', 'BRDBTC', 'BRDETH',
+#              'BRDBNB', 'MCOBNB', 'EDOBTC', 'EDOETH', 'WINGSBTC',
+#              'WINGSETH', 'NAVBTC', 'NAVETH', 'NAVBNB', 'LUNBTC', 'LUNETH',
+#              'TRIGBTC', 'TRIGETH', 'TRIGBNB'],
+
+#         if dataset_list.BINA_CHART in dataset:
+#             self._dataset[dataset_list.BINA_CHART] = {
+#                 'dir': 'data\\exchange\\binance',
+#                 'client': Binance,
+#                 'data_list': dataset[dataset_list.BINA_CHART],
+#                 'data_label': dataset_list.LABELS[dataset_list.BINA_CHART],
+#                 'download_op': 'download_charts',
+#                 'fetch_op': 'get_charts',
+#                 'validate_op': 'validate_charts'}
 
 class Binance(Cacheable):
     """https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
@@ -33,11 +105,16 @@ class Binance(Cacheable):
 #         print(json.dumps(r.json(), indent=4))
         return r.json()
 
-    def download_charts(self, pair, start, end):
-        filename = pair
+    def download_charts(self, **kwargs):
+        product = kwargs['product']
+        start = kwargs['start']
+        end = kwargs['end']
+
+        filename = product
         MAX_SIZE = 500
 
-        print('Bina Chart {}\t| Requested data from {} to {}'.format(pair, start, end))
+        print('Bina Chart {}\t| Requested data from {} to {}'.format(
+            product, start, end))
 
         # carry forward
         # time, low, high, open, close, volume, quote_asset_vol, num_trades, taker_buy_base_asset_vol, taker_buy_quote_asset_vol, is_carried
@@ -46,25 +123,21 @@ class Binance(Cacheable):
         # load if present
         try:
             self.check_cache(filename, (start, end - self.__GRANULARITY))
-            print('Bina Chart {}\t| Cached data is complete'.format(pair))
+            print('Bina Chart {}\t| Cached data is complete'.format(product))
             return filename
         except FileNotFoundError:
             print('Bina Chart {}\t| Cache for does not exist. Starting from time {}'.format(
-                pair, start))
+                product, start))
         except EndKeyNotFoundError:
             last_seen_row = self.get_last_cache(filename)
             latest_time = int(last_seen_row[0])
             start = latest_time + self.__GRANULARITY
             print('Bina Chart {}\t| Continuing from latest time {}'.format(
-                pair, latest_time))
-        except (StartKeyNotFoundError) as e:
-            # slow and may result in disjoint data if prematurely terminated
-            print(e)
-            raise Warning('Deprecated')
-        except (StartEndKeysNotFoundError) as e:
+                product, latest_time))
+        except (StartKeyNotFoundError, StartEndKeysNotFoundError) as e:
             # TODO: Handle importing disjoint historical data
             print(e)
-            raise ValueError('Data is out of range')
+            sys.exit()
 
         slice_range = self.__GRANULARITY * MAX_SIZE
         slice_start = start
@@ -73,7 +146,7 @@ class Binance(Cacheable):
 
             # fetch slice
             params = {
-                'symbol': pair,
+                'symbol': product,
                 'startTime': slice_start * 1000,
                 'endTime': slice_end * 1000,
                 'interval': '1m',
@@ -84,7 +157,7 @@ class Binance(Cacheable):
             # binance returns length zero data during mid Feb
             if len(r) == 0:
                 print('Bina Chart {}\t| Returned data for {} -> {} is length zero'.format(
-                    pair, slice_start, slice_end))
+                    product, slice_start, slice_end))
                 for timestamp in range(slice_start, slice_end, self.__GRANULARITY):
                     last_seen_row[0] = timestamp  # correct time
                     last_seen_row[-1] = 1  # is_carried == True
@@ -134,7 +207,7 @@ class Binance(Cacheable):
             # console print
             progress = 100 * (slice_end - start) / (end - start)
             print('Bina Chart {}\t| {:6.2f}% | {} -> {} | {} -> {} | {} -> {}'.format(
-                  pair,
+                  product,
                   progress,
                   round(r[0][0] / 1000),
                   round(r[-1][0] / 1000),
@@ -147,15 +220,18 @@ class Binance(Cacheable):
 
         return filename
 
-    def get_charts(self, pair, start, end):
+    def get_charts(self, **kwargs):
+        start = kwargs['start']
+        end = kwargs['end']
+
         # download charts
-        filename = self.download_charts(pair, start, end)
+        filename = self.download_charts(**kwargs)
 
         # return window
         r = self.get_cache(filename, range_keys=(start, end - 60))
         return r
 
-    def validate_data(self, filename):
+    def validate_charts(self, filename):
         r = self.get_cache(filename)
         current_time = r[0][0]
         print('Bina {}\t| Start processing from time {}'.format(

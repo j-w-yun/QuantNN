@@ -1,5 +1,6 @@
 import copy
 import json
+import sys
 import time
 
 import requests
@@ -21,50 +22,61 @@ class Gdax(Cacheable):
         self.url = 'https://api.gdax.com'
         self.timeout = 600
 
-    def __get(self, path, payload):
-        r = requests.get(self.url + path, params=payload, timeout=self.timeout)
-        retries = 0
-        while not r.ok or 'message' in r:
-            print('GDAX | {}'.format(r))
-            retries += 1
-            time.sleep(3 * retries)
-            r = requests.get(self.url + path, params=payload,
-                             timeout=self.timeout)
-#         print(json.dumps(r.json(), indent=4))
+    def __get(self, path, payload, max_retries=100):
+        r = None
+
+        # Invalid format packet
+        for retries in range(max_retries):
+            try:
+                r = requests.get(
+                    self.url + path, params=payload, timeout=self.timeout)
+
+                # HTTP not ok
+                while not r.ok or 'message' in r:
+                    print('GDAX | {}'.format(r))
+                    time.sleep(3 * retries)
+                    r = requests.get(
+                        self.url + path, params=payload, timeout=self.timeout)
+            except:
+                time.sleep(60)
+                continue
+            break
+
         return r.json()
 
-    def download_charts(self, pair, start, end):
-        filename = pair
+    def download_charts(self, **kwargs):
+        product = kwargs['product']
+        start = kwargs['start']
+        end = kwargs['end']
+
+        filename = product
         MAX_SIZE = 300
 
-        print('GDAX Chart {}\t| Requested data from {} to {}'.format(pair, start, end))
+        print('GDAX Chart {}\t| Requested data from {} to {}'.format(
+            product, start, end))
 
-        # carry forward
-        # time, low, high, open, close, volume, is_carried
-        last_seen_row = [0, 0, 0, 0, 0, 0, 1]
+        # initial carry forward value
+        last_seen_row = [
+            1 if label == dataset_list.IS_CARRIED else 0 for label in dataset_list.LABELS[dataset_list.GDAX_CHART]]
 
         # load if present
         try:
             self.check_cache(filename, (start, end - self.__GRANULARITY))
-            print('GDAX Chart {}\t| Cached data is complete'.format(pair))
+            print('GDAX Chart {}\t| Cached data is complete'.format(product))
             return filename
         except FileNotFoundError:
             print('GDAX Chart {}\t| Cache for does not exist. Starting from time {}'.format(
-                pair, start))
+                product, start))
         except EndKeyNotFoundError:
             last_seen_row = self.get_last_cache(filename)
             latest_time = int(last_seen_row[0])
             start = latest_time + self.__GRANULARITY
             print('GDAX Chart {}\t| Continuing from latest time {}'.format(
-                pair, latest_time))
-        except (StartKeyNotFoundError) as e:
-            # slow and may result in disjoint data if prematurely terminated
-            print(e)
-            raise Warning('Deprecated')
-        except (StartEndKeysNotFoundError) as e:
+                product, latest_time))
+        except (StartKeyNotFoundError, StartEndKeysNotFoundError) as e:
             # TODO: Handle importing disjoint historical data
             print(e)
-            raise ValueError('Data is out of range')
+            sys.exit()
 
         slice_range = self.__GRANULARITY * MAX_SIZE
         slice_start = start
@@ -75,16 +87,19 @@ class Gdax(Cacheable):
             params = {'start': helper.unix_to_iso(slice_start),
                       'end': helper.unix_to_iso(slice_end),
                       'self.__GRANULARITY': self.__GRANULARITY}
-            r = self.__get('/products/{}/candles'.format(pair), params)
+            r = self.__get('/products/{}/candles'.format(product), params)
             r = r[::-1]
 
             # may return length zero r
             if len(r) == 0:
                 print('GDAX Chart {}\t| Returned data for {} -> {} is length zero'.format(
-                    pair, slice_start, slice_end))
+                    product, slice_start, slice_end))
                 for timestamp in range(slice_start, slice_end, self.__GRANULARITY):
                     last_seen_row[0] = timestamp  # correct time
+
+                    # do not carry non-continuous values
                     last_seen_row[5] = 0  # volume
+
                     last_seen_row[-1] = 1  # is_carried == True
                     self.append_cache(filename, last_seen_row)
                 # next slice
@@ -106,14 +121,17 @@ class Gdax(Cacheable):
                     slice_index = min(slice_index + 1, len(r) - 1)
                 else:
                     last_seen_row[0] = timestamp  # correct time
+
+                    # do not carry non-continuous values
                     last_seen_row[5] = 0  # volume
+
                     last_seen_row[-1] = 1  # is_carried == True
                     self.append_cache(filename, last_seen_row)
 
             # console print
             progress = 100 * (slice_end - start) / (end - start)
             print('GDAX Chart {}\t| {:6.2f}% | {} -> {} | {} -> {} | {} -> {}'.format(
-                  pair,
+                  product,
                   progress,
                   r[0][0],
                   r[-1][0],
@@ -127,15 +145,18 @@ class Gdax(Cacheable):
 
         return filename
 
-    def get_charts(self, pair, start, end):
+    def get_charts(self, **kwargs):
+        start = kwargs['start']
+        end = kwargs['end']
+
         # download charts
-        filename = self.download_charts(pair, start, end)
+        filename = self.download_charts(**kwargs)
 
         # return window
         r = self.get_cache(filename, range_keys=(start, end - 60))
         return r
 
-    def validate_data(self, filename):
+    def validate_charts(self, filename):
         r = self.get_cache(filename)
         current_time = r[0][0]
         print('GDAX {}\t| Start processing from time {}'.format(

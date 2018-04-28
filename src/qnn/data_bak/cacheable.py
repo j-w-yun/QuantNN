@@ -39,13 +39,13 @@ class Cacheable:
             except FileExistsError:
                 pass
 
-    def get_cwd(self):
-        cwd = os.getcwd()
-        return '{}\\{}'.format(cwd, self.save_directory)
+#     def get_cwd(self):
+#         cwd = os.getcwd()
+#         return '{}\\{}'.format(cwd, self.save_directory)
 
-    def get_filepath(self, filename):
-        cwd = os.getcwd()
-        return '{}\\{}\\{}.txt'.format(cwd, self.save_directory, filename)
+#     def get_filepath(self, filename):
+#         cwd = os.getcwd()
+#         return '{}\\{}\\{}.txt'.format(cwd, self.save_directory, filename)
 
     def cache_exists(self, filename):
         try:
@@ -246,11 +246,6 @@ class Cacheable:
                 'Directory {} does not exist'.format(self.save_directory))
 
         filepath = '{}/{}.txt'.format(self.save_directory, filename)
-
-#         with open(filepath, 'r') as f:
-#             for line in f:
-#                 pass
-#             return self._float_decode_row(line)
 
         # https://stackoverflow.com/questions/3346430/what-is-the-most-efficient-way-to-get-first-and-last-line-of-a-text-file
         with open(filepath, 'rb') as f:
