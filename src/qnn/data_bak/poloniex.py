@@ -1,5 +1,4 @@
 import copy
-import json
 import sys
 import time
 
@@ -32,15 +31,8 @@ class Poloniex(Cacheable):
                 r = requests.get(
                     self.url + path, params=payload, timeout=self.timeout)
 
-                # HTTP not ok
-                while not r.ok:
-                    print('Poloniex | {}'.format(r))
-                    time.sleep(3 * retries)
-                    r = requests.get(
-                        self.url + path, params=payload, timeout=self.timeout)
-
-                # Poloniex error
-                while 'message' in r.json():
+                # HTTP not OK or Poloniex error
+                while not r.ok or 'message' in r.json():
                     print('Poloniex | {}'.format(r.json()['message']))
                     time.sleep(3 * retries)
                     r = requests.get(
@@ -241,10 +233,3 @@ class Poloniex(Cacheable):
             self.set_cache(filename, new_data)
             print('Polo {}\t| Set new cache'.format(filename))
         print('Polo {}\t| Validated'.format(filename))
-
-
-if __name__ == '__main__':
-    client = Poloniex('test_dir')
-    r = client.get_trades(product='USDT_ETH',
-                          start=1488357000,
-                          end=1488387000)

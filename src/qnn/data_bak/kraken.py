@@ -1,10 +1,8 @@
 import copy
-import json
 import sys
 import time
 
 import requests
-from requests.exceptions import ReadTimeout
 
 from cacheable import Cacheable, StartKeyNotFoundError, EndKeyNotFoundError,\
     StartEndKeysNotFoundError
@@ -33,16 +31,8 @@ class Kraken(Cacheable):
                 r = requests.get(
                     self.url + path, params=payload, timeout=self.timeout)
 
-                # HTTP not ok
-                while not r.ok:
-                    print('Kraken | {}'.format(r))
-                    time.sleep(3 * retries)
-                    r = requests.get(
-                        self.url + path, params=payload, timeout=self.timeout)
-
-                # Kraken error
-                while len(r.json()['error']) > 0:
-                    print('Kraken | {}'.format(r.json()['error']))
+                # HTTP not OK or Kraken error
+                while not r.ok or len(r.json()['error']) > 0:
                     time.sleep(3 * retries)
                     r = requests.get(
                         self.url + path, params=payload, timeout=self.timeout)
@@ -253,15 +243,3 @@ class Kraken(Cacheable):
             self.set_cache(filename, new_data)
             print('Krak {}\t| Set new cache'.format(filename))
         print('Krak {}\t| Validated'.format(filename))
-
-
-if __name__ == '__main__':
-    client = Kraken('test_dir')
-    start = time.time()
-    if start % 60 != 0:
-        delta = start % 60
-        start = start - delta
-    end = start + 600
-    r = client.get_trades(product='XETHZUSD',
-                          start=int(start),
-                          end=int(end))

@@ -20,6 +20,7 @@ class Ethereum(Cacheable):
     def __init__(self, save_directory, worker_id='Main'):
         super(Ethereum, self).__init__(save_directory)
         providers = [
+            # https://infura.io/
             HTTPProvider('https://mainnet.infura.io/4fjXq9goTOJaeQr6fz03'),
             HTTPProvider('https://api.myetherapi.com/eth')]
         self.w3 = Web3(providers)
@@ -189,7 +190,8 @@ class Ethereum(Cacheable):
                 row[2] = row[2] / 1E10
                 row[3] = row[3] / 1E15
             else:
-                row = [timestamp, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                row = [0 for _ in dataset_list.LABELS[dataset_list.ETHE_BLOCK]]
+                row[0] = timestamp
 
             # display progress
             progress = 100 * (timestamp - start) / (end - start)
@@ -334,34 +336,3 @@ class Ethereum(Cacheable):
             self.set_cache(filename, new_data)
             print('Ethereum\t| Set new cache')
         print('Ethereum\t| Validated')
-
-
-if __name__ == '__main__':
-    web3 = Ethereum('test_dir')
-    r = web3.get_blocks(None, 1470034800, 1470037800)
-    web3.validate_data('ethereum')
-    print(len(r))
-
-#     r = web3.get_block_info(5459570)
-#     for row in r:
-#         print(row, ' : ', r[row])
-#     print('\n')
-
-#     r = web3.get_block_transactions(5459570)
-#     METHOD_CHAR_LENGTH = 10  # '0x' and 8 bytes (in hexadec) of method header
-#     for elem in r:
-#         if elem['input'] != '0x':
-#             print('block :', elem['blockNumber'])
-#             print('blockhash :', elem['blockHash'].hex())
-#             print('hash :', elem['hash'].hex())
-#             print('tx :', elem['from'], ' -> ', elem['to'])
-#             print('gas :', elem['gas'],
-#                   'gas price :', elem['gasPrice'])
-#             print('input:')
-#             print('\tmethod :', elem['input'][:METHOD_CHAR_LENGTH])
-#             last_i = METHOD_CHAR_LENGTH
-#             for i in range(len(elem['input'][METHOD_CHAR_LENGTH:]) // 32):
-#                 current_i = (i + 1) * 32 + METHOD_CHAR_LENGTH
-#                 print('\targs :', elem['input'][last_i:current_i])
-#                 last_i = current_i
-#             print()

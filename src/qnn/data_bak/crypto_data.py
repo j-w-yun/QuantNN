@@ -1,9 +1,7 @@
 from datetime import datetime
 from multiprocessing.pool import ThreadPool
 import shutil
-import sys
 
-from binance import Binance
 import dateutil.tz
 from gdax import Gdax
 from poloniex import Poloniex
@@ -714,8 +712,8 @@ if __name__ == '__main__':
     crypto = Crypto(cache_directory='data\\processed_data')
 
     # start date of data
-    start = {'year': 2018,
-             'month': 1,
+    start = {'year': 2016,
+             'month': 8,
              'day': 1,
              'hour': 0,
              'minute': 0}
@@ -723,26 +721,29 @@ if __name__ == '__main__':
 
     # end date of data
     end = {'year': 2018,
-           'month': 1,
-           'day': 2,
+           'month': 4,
+           'day': 28,
            'hour': 0,
            'minute': 0}
     crypto.set_end_date(end)
 
-    # select items to put in data
-    dataset = dataset_list.JUN2016
+    # select currency pair set
+    dataset = dataset_list.AUG2016
     crypto.set_dataset(dataset)
 
     # select the values to average for target sequence
     exchanges = [dataset_list.GDAX_CHART,
-                 dataset_list.GDAX_CHART,
-                 dataset_list.GDAX_CHART]
+                 dataset_list.POLO_TRADE,
+                 dataset_list.KRAK_TRADE]
     products = ['ETH-USD',
-                'ETH-BTC',
-                'BTC-USD']
-    labels = [(dataset_list.HIGH, dataset_list.LOW),
-              (dataset_list.HIGH, dataset_list.LOW),
-              (dataset_list.HIGH, dataset_list.LOW)]
+                'USDT_ETH',
+                'XETHZUSD']
+    labels = [(dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE),
+              (dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE),
+              (dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE)]
     crypto.set_target(exchanges, products, labels)
 
     # if start and end dates in UNIX are not evenly divisible by 60 seconds,
@@ -753,17 +754,13 @@ if __name__ == '__main__':
     print('UNIX End Date   : {}\n'.format(crypto.end_unix))
 
     # fetch data. this downloads data if cache file is not present
-    train_dataset, test_dataset, train_data, test_data = crypto.get_datasets(
+    train_dataset, test_dataset = crypto.get_datasets(
         input_seq_length=1,
         target_seq_length=1,
         train_ratio=0.5,
         load_cache=False,
         use_test_dir=True,
         validate_data=False)
-
-    # check correctness of data shape
-    print('Train Data Shape : {}'.format(train_data.shape))
-    print('Test Data Shape : {}\n'.format(test_data.shape))
 
     print('Train Data Inputs Shape : {}'.format(train_dataset.inputs.shape))
     print('Train Data Targets Shape : {}'.format(train_dataset.targets.shape))
@@ -772,7 +769,8 @@ if __name__ == '__main__':
 
     example = train_dataset.get_example(0)
     print('Example Input Shape : {}'.format(example[0].shape))
-    print('Example Target Shape : {}'.format(example[1].shape))
+    print('Example Target Shape : {}\n'.format(example[1].shape))
+
     print('Train Num Examples : {}'.format(train_dataset.num_examples))
     print('Test Num Examples : {}'.format(test_dataset.num_examples))
     print('Train Input Depth : {}'.format(train_dataset.input_depth))
