@@ -3,3 +3,6 @@ numpy
 tensorflow
 pyyaml
 
+# Testing
+nose
+
