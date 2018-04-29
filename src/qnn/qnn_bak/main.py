@@ -5,6 +5,7 @@ import time
 from crypto_data import Crypto
 import dataset_list
 from encoder_decoder import EncoderDecoder
+from feature_extractor import CryptoFeatureExtractorController
 from figure_manager import FigureManager
 import matplotlib.pyplot as plt
 from model_saver import Saver
@@ -13,20 +14,12 @@ import tensorflow as tf
 from util import get_num_params
 
 
-#=========================================================================
-# TODO:
-#
-#    - Take carried-forward data out of consideration during training
-#    - Simulation show ratio product/cash superimposed bar graph?
-#    - Simulation - when predicted signal is way off actual, hold off for all
-#        of the mistake timeperiod's over-reaching predictions (or divide it out
-#        from cache)
-#
-#=========================================================================
+# os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1'
 
-def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
+def fetch_data(input_seq_length, target_seq_length, train_ratio):
     # must set dataset_list, start and end dates before fetching data
-    crypto = Crypto(cache_directory='data\\processed_data')
+    crypto = Crypto(cache_directory='data\\processed_cache')
 
     # start date of data
     start = {'year': 2016,
@@ -39,21 +32,29 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
     # end date of data
     end = {'year': 2018,
            'month': 4,
-           'day': 19,
+           'day': 27,
            'hour': 0,
            'minute': 0}
     crypto.set_end_date(end)
 
     # select currency pair set
-    crypto_dataset = dataset_list.AUG2016
-    crypto.set_dataset(crypto_dataset)
-    crypto.set_target(
-        exchange=dataset_list.GDAX_CHART,
-        product='ETH-USD',
-        labels=(dataset_list.OPEN,
-                dataset_list.HIGH,
-                dataset_list.LOW,
-                dataset_list.CLOSE))
+    dataset = dataset_list.AUG2016
+    crypto.set_dataset(dataset)
+
+    # select the values to average for target sequence
+    exchanges = [dataset_list.GDAX_CHART,
+                 dataset_list.POLO_TRADE,
+                 dataset_list.KRAK_TRADE]
+    products = ['ETH-USD',
+                'USDT_ETH',
+                'XETHZUSD']
+    labels = [(dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE),
+              (dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE),
+              (dataset_list.LOW, dataset_list.HIGH,
+               dataset_list.OPEN, dataset_list.CLOSE)]
+    crypto.set_target(exchanges, products, labels)
 
     # if start and end dates in UNIX are not evenly divisible by 60 seconds,
     # the mutator methods automatically rounds the date down to the nearest t
@@ -63,16 +64,13 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
     print('UNIX End Date   : {}\n'.format(crypto.end_unix))
 
     # fetch data. this downloads data if cache file is not present
-    train_dataset, test_dataset, train_data, test_data = crypto.get_datasets(
+    train_dataset, test_dataset = crypto.get_datasets(
         input_seq_length=input_seq_length,
         target_seq_length=target_seq_length,
         train_ratio=train_ratio,
         load_cache=True,
         use_test_dir=False,
-        validate_files=False)
-
-    print('Train Data Shape : {}'.format(train_data.shape))
-    print('Test Data Shape : {}\n'.format(test_data.shape))
+        validate_data=False)
 
     print('Train Data Inputs Shape : {}'.format(train_dataset.inputs.shape))
     print('Train Data Targets Shape : {}'.format(train_dataset.targets.shape))
@@ -81,7 +79,8 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
 
     example = train_dataset.get_example(0)
     print('Example Input Shape : {}'.format(example[0].shape))
-    print('Example Target Shape : {}'.format(example[1].shape))
+    print('Example Target Shape : {}\n'.format(example[1].shape))
+
     print('Train Num Examples : {}'.format(train_dataset.num_examples))
     print('Test Num Examples : {}'.format(test_dataset.num_examples))
     print('Train Input Depth : {}'.format(train_dataset.input_depth))
@@ -89,7 +88,7 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
     print('Test Input Depth : {}'.format(test_dataset.input_depth))
     print('Test Target Depth : {}\n'.format(test_dataset.target_depth))
 
-    return train_dataset, test_dataset, train_data, test_data
+    return train_dataset, test_dataset
 
 
 #=========================================================================
@@ -97,48 +96,51 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio=0.9):
 #=========================================================================
 
 # partition ratio of train to test examples
-TRAIN_RATIO = 0.98
+TRAIN_RATIO = 0.97
 
 # moving window size for each train/test example
-INPUT_SEQ_LEN = 40
+INPUT_SEQ_LEN = 30
 TARGET_SEQ_LEN = 5
 
 # fetch data
-train, test, train_data, test_data = fetch_data(
-    INPUT_SEQ_LEN, TARGET_SEQ_LEN, TRAIN_RATIO)
+train, test = fetch_data(INPUT_SEQ_LEN, TARGET_SEQ_LEN, TRAIN_RATIO)
 
 # number of training and testing examples calculated from number of
 # timestamps in data and the moving window size defined above
 NUM_TRAIN = train.num_examples
 NUM_TEST = test.num_examples
 
-# number of features at each timestamp. e.g. open/close price, volume, ...
+# number of features at each timestamp (low, high, open, close, ...)
 INPUT_DEPTH = train.input_depth
 TARGET_DEPTH = train.target_depth
 
-# neural network model architecture
-ENCODER_LAYERS = [1024, 1024, 1024]
-DECODER_LAYERS = ENCODER_LAYERS
-NUM_ATTENTION_UNITS = ENCODER_LAYERS[-1]
+# feature-extractor CNN architecture
+KERNEL_SIZES = [3, 3]
+KERNEL_FILTERS = [64, 64]
+CNN_OUTPUT_SIZE = 512
 
-# decoder training parameters. these are set to 1.0 during inference (testing)
-DROPOUT_KEEP_PROB = 0.90
-DECODER_SAMPLING_PROB = 0.10
+# encoder-decoder RNN architecture
+NUM_UNITS = 512
+NUM_LAYERS = 6
+
+# dropout and sampling probabilities
+RNN_KEEP_PROB = 0.80
+SAMPLING_PROB = 0.10
 
 # training epochs and size of mini-batches
 EPOCHS = 1000
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 NUM_TRAIN_BATCH = int(np.ceil(NUM_TRAIN / BATCH_SIZE))
 
 # dealing with limited GPU memory. lower this number if getting mem errors
-MAX_BATCH_SIZE = 1024
+MAX_BATCH_SIZE = 256
 NUM_TEST_BATCH = int(np.ceil(NUM_TEST / MAX_BATCH_SIZE))
 
 # optimizer settings
 MAX_GRADIENT_NORM = 5.0
-LEARNING_RATE_INIT = 0.0002
+LEARNING_RATE_INIT = 0.00001
 LEARNING_RATE_DECAY_RATE = 0.9
-LEARNING_RATE_DECAY_STEPS = NUM_TRAIN_BATCH * 2
+LEARNING_RATE_DECAY_STEPS = NUM_TRAIN_BATCH
 
 # evaluation involves calculating losses on all test data and saving the
 # current learned neural network model. this number is the frequency at
@@ -151,59 +153,62 @@ EVAL_EVERY = 200
 # after SHOW_EVERY number of training steps
 SHOW_EVERY = 50
 
-# keep the hyper-parameters defined above concisely in a python dict for
-# future reference
-hparam = {'percent train': TRAIN_RATIO,
-          'encoder layers': ENCODER_LAYERS,
-          'decoder layers': DECODER_LAYERS,
-          'attention units': NUM_ATTENTION_UNITS,
-          'input sequence length': INPUT_SEQ_LEN,
-          'target sequence length': TARGET_SEQ_LEN,
-          'maximum gradient norm': MAX_GRADIENT_NORM,
-          'initial learning rate': LEARNING_RATE_INIT,
-          'learning rate decay steps': LEARNING_RATE_DECAY_STEPS,
-          'learning rate decay rate': LEARNING_RATE_DECAY_RATE,
-          'dropout keep probability': DROPOUT_KEEP_PROB,
-          'decoder sampling probability': DECODER_SAMPLING_PROB,
-          'batch size': BATCH_SIZE,
-          'number of training batches': NUM_TRAIN_BATCH}
-
 
 #=========================================================================
 # DEFINE INPUT NODES AND BUILD
 #=========================================================================
 
-# input nodes
+# input sequence placeholder
 input_sequence = tf.placeholder(
     dtype=tf.float32,
-    shape=[None, INPUT_SEQ_LEN, INPUT_DEPTH],
+    shape=(None, INPUT_SEQ_LEN, INPUT_DEPTH),
     name='input_sequence')
+
+# target sequence placeholder
 target_sequence = tf.placeholder(
     dtype=tf.float32,
-    shape=[None, TARGET_SEQ_LEN, TARGET_DEPTH],
+    shape=(None, TARGET_SEQ_LEN, TARGET_DEPTH),
     name='target_sequence')
-output_keep_prob = tf.placeholder(
+
+# RNN dropout keep probability placeholder
+rnn_keep_prob = tf.placeholder(
     dtype=tf.float32,
     shape=(),
-    name='output_keep_prob')
+    name='rnn_keep_prob')
+
+
+# decoder sampling probability placeholder
 sampling_prob = tf.placeholder(
     dtype=tf.float32,
     shape=(),
     name='sampling_prob')
 
-# build model
-encoder_decoder = EncoderDecoder(
-    encoder_layers=ENCODER_LAYERS,
-    decoder_layers=DECODER_LAYERS,
+# define CNN feature-extractor
+cfe = CryptoFeatureExtractorController(
     input_length=INPUT_SEQ_LEN,
-    input_depth=INPUT_DEPTH,
+    input_labels=train.input_labels,
+    kernel_sizes=KERNEL_SIZES,
+    kernel_filters=KERNEL_FILTERS,
+    output_size=CNN_OUTPUT_SIZE)
+
+# build CNN
+new_sequence, new_length = cfe.build(
+    input_ph=input_sequence)
+
+# define RNN encoder-decoder
+encoder_decoder = EncoderDecoder(
+    num_units=NUM_UNITS,
+    num_layers=NUM_LAYERS,
+    input_length=new_length,
+    input_depth=CNN_OUTPUT_SIZE,
     target_length=TARGET_SEQ_LEN,
-    target_depth=TARGET_DEPTH,
-    use_attention=True)
+    target_depth=TARGET_DEPTH)
+
+# build RNN
 outputs = encoder_decoder.build(
-    input_ph=input_sequence,
+    input_ph=new_sequence,
     target_ph=target_sequence,
-    output_keep_prob=output_keep_prob,
+    keep_prob=rnn_keep_prob,
     sampling_prob=sampling_prob)
 
 
@@ -232,7 +237,7 @@ clipped_gradients, _ = tf.clip_by_global_norm(gradients, MAX_GRADIENT_NORM)
 # incremented per train step
 global_step = tf.get_variable(
     'global_step',
-    shape=[],
+    shape=(),
     trainable=False,
     initializer=tf.zeros_initializer)
 
@@ -245,9 +250,10 @@ learning_rate = tf.train.exponential_decay(
     staircase=True)
 
 # optimization
-optimizer = tf.train.AdamOptimizer(learning_rate)
-train_op = optimizer.apply_gradients(zip(clipped_gradients, trainable_vars),
-                                     global_step=global_step)
+optimizer = tf.train.AdamOptimizer(learning_rate, beta1=0.9, beta2=0.999)
+train_op = optimizer.apply_gradients(
+    grads_and_vars=zip(clipped_gradients, trainable_vars),
+    global_step=global_step)
 
 # total number of parameters
 n_params = get_num_params()
@@ -271,10 +277,9 @@ def train_model(model_id, model_filename=None):
     if model_filename is not None:
         try:
             model_saver.restore_model(sess, model_filename)
-            print('Restored model from {}'.format(model_filename))
+            print('Restored model from {}\n'.format(model_filename))
         except Exception as e:
-            print('Failed to restore model from {}'.format(model_filename))
-            print(e)
+            print('Failed to restore model from {}\n'.format(model_filename), e)
             sys.exit()
 
     # initialize figures
@@ -320,8 +325,8 @@ def train_model(model_id, model_filename=None):
             # run a train step
             feed_dict = {input_sequence: x,
                          target_sequence: y,
-                         sampling_prob: DECODER_SAMPLING_PROB,
-                         output_keep_prob: DROPOUT_KEEP_PROB}
+                         rnn_keep_prob: RNN_KEEP_PROB,
+                         sampling_prob: SAMPLING_PROB}
             ops = [train_op, cost]
 
             start_time = time.time()
@@ -359,42 +364,48 @@ def train_model(model_id, model_filename=None):
                 step = NUM_TRAIN // fig.get_num_train_figs()
                 indices = range(0, NUM_TRAIN, step)
                 x, y = train.get_example_set(indices)
+
+                # calculate with no dropout
                 feed_dict = {input_sequence: x,
                              target_sequence: y,
-                             sampling_prob: 1.0,
-                             output_keep_prob: 1.0}
+                             rnn_keep_prob: 1.0,
+                             sampling_prob: 1.0}
                 predictions = sess.run(outputs, feed_dict=feed_dict)
 
                 # plot sample training predictions
-                fig.plot_predictions(predictions,
-                                     train_data,
-                                     indices,
-                                     INPUT_SEQ_LEN,
-                                     TARGET_SEQ_LEN,
-                                     True)
+                fig.plot_predictions(
+                    predictions,
+                    train.raw_targets,
+                    indices,
+                    INPUT_SEQ_LEN,
+                    TARGET_SEQ_LEN,
+                    is_training_data=True)
 
                 # compute a sample of inference predictions
                 step = NUM_TEST // fig.get_num_test_figs()
                 indices = range(0, NUM_TEST, step)
                 x, y = test.get_example_set(indices)
+
+                # calculate with no dropout
                 feed_dict = {input_sequence: x,
                              target_sequence: y,
-                             sampling_prob: 1.0,
-                             output_keep_prob: 1.0}
+                             rnn_keep_prob: 1.0,
+                             sampling_prob: 1.0}
                 ops = [outputs, cost]
                 [predictions,
                  sample_test_cost] = sess.run(ops, feed_dict=feed_dict)
 
-                # plot sample inference predictions
-                fig.plot_predictions(predictions,
-                                     test_data,
-                                     indices,
-                                     INPUT_SEQ_LEN,
-                                     TARGET_SEQ_LEN,
-                                     False)
-
                 # sample inference losses
                 past_sample_test_cost_list.append(sample_test_cost)
+
+                # plot sample inference predictions
+                fig.plot_predictions(
+                    predictions,
+                    test.raw_targets,
+                    indices,
+                    INPUT_SEQ_LEN,
+                    TARGET_SEQ_LEN,
+                    is_training_data=False)
 
             # evaluate inference after set amount of training
             if int(current_global_step) % EVAL_EVERY == 0:
@@ -422,8 +433,8 @@ def train_model(model_id, model_filename=None):
                     # run graph on inference data
                     feed_dict = {input_sequence: x,
                                  target_sequence: y,
-                                 sampling_prob: 1.0,
-                                 output_keep_prob: 1.0}
+                                 rnn_keep_prob: 1.0,
+                                 sampling_prob: 1.0}
                     test_cost = sess.run(cost, feed_dict=feed_dict)
 
                     # collect inference performance
@@ -442,7 +453,7 @@ def train_model(model_id, model_filename=None):
 
                 # console print
                 description_4 = '\tInference Loss: {}'.format(test_cost)
-                description_5 = '\tL2 Distance of Weights: {}'.format(
+                description_5 = '\tL2 Distance of Weights: {}\n'.format(
                     var_distance)
                 print(description_4, description_5, sep='\n')
 
@@ -460,19 +471,10 @@ def train_model(model_id, model_filename=None):
                     train_cost, test_cost)
                 savepath = model_saver.save_model(
                     sess, dir_path, model_filename)
-                print('Model saved to {}'.format(savepath))
-
-                # save model hparam as text file
-                model_saver.save_hparam(
-                    dir_path,
-                    'hparam.txt',
-                    current_global_step,
-                    current_learning_rate,
-                    hparam)
+                print('Model saved to {}\n'.format(savepath))
 
                 # plot stats
                 fig.plot_stats(
-                    train_data, test_data,
                     train, test,
                     past_train_cost_list,
                     past_avg_train_cost_list,
@@ -485,7 +487,7 @@ def train_model(model_id, model_filename=None):
                 pdf_filename = 'model_{}_epoch_{}_batch_{}'.format(
                     model_id, epoch, (train_batch + 1))
                 fig.save(dir_path, pdf_filename)
-                print('Figures saved to {}/{}'.format(dir_path, pdf_filename))
+                print('Figures saved to {}/{}\n'.format(dir_path, pdf_filename))
 
 
 #=========================================================================
@@ -495,8 +497,7 @@ def train_model(model_id, model_filename=None):
 def main():
     """Entry point. Train model.
     """
-    MODEL_ID = 0
-
+    MODEL_ID = 1
     train_model(model_id=MODEL_ID)
 
 
