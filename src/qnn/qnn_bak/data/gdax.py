@@ -32,7 +32,6 @@ class Gdax(Cacheable):
 
                 # HTTP not OK or GDAX error
                 while not r.ok or 'message' in r:
-                    print('GDAX | {}'.format(r))
                     time.sleep(3 * retries)
                     r = requests.get(
                         self.url + path, params=payload, timeout=self.timeout)

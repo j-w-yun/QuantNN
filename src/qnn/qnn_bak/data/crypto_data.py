@@ -353,7 +353,7 @@ class Crypto(Cacheable):
                 # unprocessed data
                 raw_data = np.memmap(
                     '{}\\raw_data'.format(self.save_directory),
-                    dtype='float64',
+                    dtype='float32',
                     mode='r',
                     shape=(int(shape[0]), int(shape[1])))
 
@@ -393,7 +393,7 @@ class Crypto(Cacheable):
         # keep on disk as data can be too large for RAM
         raw_data = np.memmap(
             '{}\\raw_data'.format(self.save_directory),
-            dtype='float64',
+            dtype='float32',
             mode='w+',
             shape=(num_rows, num_cols))
 
@@ -450,7 +450,7 @@ class Crypto(Cacheable):
         # open as read-only
         raw_data = np.memmap(
             '{}\\raw_data'.format(self.save_directory),
-            dtype='float64',
+            dtype='float32',
             mode='r',
             shape=(num_rows, num_cols))
 
@@ -467,13 +467,13 @@ class Crypto(Cacheable):
             last_seen_val = 0
             for row_index, row_elem in enumerate(col_data):
                 if row_elem == 0:
-                    if last_seen_val == 0:  # log all first zeros
+                    if last_seen_val == 0:  # remember first zero indices
                         carry_back.append(row_index)
                     else:
                         new_col_data.append(last_seen_val)
                 else:
                     if len(carry_back) != 0:
-                        for _ in carry_back:  # fill all first zeros
+                        for _ in carry_back:  # fill all first zeros indices
                             new_col_data.append(row_elem)
                         carry_back = []
                     last_seen_val = row_elem
@@ -512,7 +512,7 @@ class Crypto(Cacheable):
             mean = np.mean(col_data, axis=0)
             std = np.std(col_data, axis=0)
             y = (col_data - mean) / std
-            return y[1:]
+            return y
 
         # find all target columns
         target_cols = []
@@ -555,7 +555,7 @@ class Crypto(Cacheable):
         # cache inputs
         inputs = np.memmap(
             '{}\\inputs'.format(self.save_directory),
-            dtype='float64',
+            dtype='float32',
             mode='w+',
             shape=(data.shape[0] - 1, data.shape[1]))
 
@@ -579,7 +579,7 @@ class Crypto(Cacheable):
         # read
         inputs = np.memmap(
             '{}\\inputs'.format(self.save_directory),
-            dtype='float64',
+            dtype='float32',
             mode='r',
             shape=(data.shape[0] - 1, data.shape[1]))
 
@@ -631,7 +631,7 @@ class Crypto(Cacheable):
                 # input data
                 inputs = np.memmap(
                     '{}\\inputs'.format(self.save_directory),
-                    dtype='float64',
+                    dtype='float32',
                     mode='r',
                     shape=(raw_data.shape[0] - 1, raw_data.shape[1]))
 

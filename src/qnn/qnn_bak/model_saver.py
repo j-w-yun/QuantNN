@@ -35,10 +35,10 @@ class Saver:
                 hparam['percent train']), file=text_file)
             print('\n', end='', file=text_file)
 
-            print('Encoder Layers: {}'.format(
-                hparam['encoder layers']), file=text_file)
-            print('Decoder Layers: {}'.format(
-                hparam['decoder layers']), file=text_file)
+            print('Number of Units: {}'.format(
+                hparam['number of units']), file=text_file)
+            print('Number of Layers: {}'.format(
+                hparam['number of layers']), file=text_file)
             print('Attention Units: {}'.format(
                 hparam['attention units']), file=text_file)
             print('\n', end='', file=text_file)

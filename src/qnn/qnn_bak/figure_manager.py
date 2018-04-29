@@ -51,7 +51,7 @@ class FigureManager:
         self.fig_1 = fig_1
         self.axarr_1_train = axarr_1[:self.get_num_train_figs()]
         self.axarr_1_test = axarr_1[self.get_num_train_figs():]
-        # # set fig1 window position
+        # set fig1 window position
         # mngr = plt.get_current_fig_manager()
         # mngr.window.wm_geometry('1063x1847+-2159+5')
         # plt.pause(0.5)
@@ -70,8 +70,6 @@ class FigureManager:
         self.draw_stats()
 
     def plot_stats(self,
-                   train_data,
-                   test_data,
                    train_dataset,
                    test_dataset,
                    train_losses,
@@ -183,15 +181,13 @@ class FigureManager:
         # plot all raw data
         title = 'Raw Target Data'
         if self.axarr_2[8].get_title() != title:
-            train_target = np.mean(train_data[:, :4], axis=1)
-            test_target = np.mean(test_data[:, :4], axis=1)
-
             self.axarr_2[8].set_title(title)
             self.axarr_2[8].plot(
-                np.concatenate([train_target, test_target], axis=0),
+                np.concatenate(
+                    [train_dataset.raw_targets, test_dataset.raw_targets], axis=0),
                 linewidth=LINEWIDTH,
                 color='green')
-            self.axarr_2[8].plot(train_target,
+            self.axarr_2[8].plot(train_dataset.raw_targets,
                                  linewidth=LINEWIDTH,
                                  color='blue')
         # plot all processed data
@@ -213,14 +209,11 @@ class FigureManager:
         # plot sample perceived data
         title = 'Sample Perceived Target Data'
         if self.axarr_2[10].get_title() != title:
-            train_target = np.mean(train_data[-show:, :4], axis=1)
-            test_target = np.mean(test_data[:show, :4], axis=1)
-
             train_ratios = np.exp(train_dataset.targets[-show:, 0] / scale)
             test_ratios = np.exp(test_dataset.targets[:show, 0] / scale)
 
-            train_perc = train_target * train_ratios
-            test_perc = test_target * test_ratios
+            train_perc = train_dataset.raw_targets[-show:] * train_ratios
+            test_perc = test_dataset.raw_targets[:show] * test_ratios
 
             self.axarr_2[10].set_title(title)
             self.axarr_2[10].plot(
@@ -248,75 +241,77 @@ class FigureManager:
                                   color='blue')
         self.draw_stats()
 
-    def _plot_prediction(self,
-                         previous,
-                         future,
-                         actual,
-                         predicted,
-                         axis_index,
-                         is_training_data):
+    def _plot_subplot(self,
+                      previous,
+                      future,
+                      predicted,
+                      subplot_index,
+                      is_training_data):
         """Plots one prediction figure.
         """
         LINEWIDTH = 0.7
         axarr_1 = None
-        modifiable_line_key = str(axis_index)
+
+        modifiable_line_key = str(subplot_index)
         if is_training_data:
             axarr_1 = self.axarr_1_train
             modifiable_line_key += 'train'
         else:
             axarr_1 = self.axarr_1_test
             modifiable_line_key += 'test'
-        if axis_index < len(axarr_1):
+
+        if subplot_index < len(axarr_1):
             # concatenate to shift to the correct x position
-            predicted_plot = np.concatenate([previous, predicted], axis=0)
-            future_plot = np.concatenate([previous, future], axis=0)
-            actual_plot = np.concatenate([previous, actual], axis=0)
+            predicted_plot = previous.tolist() + predicted.tolist()
+
+            future_plot = previous.tolist() + future.tolist()
+
             if modifiable_line_key in self.modifiable_fig_1_lines:
-                # alter the y value of prediction
                 self.modifiable_fig_1_lines[modifiable_line_key].set_ydata(
                     predicted_plot)
-                axarr_1[axis_index].relim()
-                axarr_1[axis_index].autoscale_view()
+
+                axarr_1[subplot_index].relim()
+                axarr_1[subplot_index].autoscale_view()
+
             else:
-                # prediction values
-                self.modifiable_fig_1_lines[modifiable_line_key], = axarr_1[axis_index].plot(
+                self.modifiable_fig_1_lines[modifiable_line_key], = axarr_1[subplot_index].plot(
                     predicted_plot,
                     linewidth=LINEWIDTH,
                     color='red')
-                # far future values
-                axarr_1[axis_index].plot(future_plot,
-                                         linewidth=LINEWIDTH,
-                                         color='orange')
-                # target values
-                axarr_1[axis_index].plot(actual_plot,
-                                         linewidth=LINEWIDTH,
-                                         color='green')
+
+                # future values
+                axarr_1[subplot_index].plot(future_plot,
+                                            linewidth=LINEWIDTH,
+                                            color='green')
                 # previous values
-                axarr_1[axis_index].plot(previous,
-                                         linewidth=LINEWIDTH,
-                                         color='blue')
+                axarr_1[subplot_index].plot(previous,
+                                            linewidth=LINEWIDTH,
+                                            color='blue')
+
                 # minimum value that was plotted, excluding prediction values
-                axarr_1[axis_index].text(0.99, 0.01,
-                                         '{:0.2f}'.format(np.min(future)),
-                                         horizontalalignment='right',
-                                         verticalalignment='bottom',
-                                         fontsize=6, color='black',
-                                         transform=axarr_1[axis_index].transAxes)
+                axarr_1[subplot_index].text(0.99, 0.01,
+                                            '{:0.2f}'.format(np.min(future)),
+                                            horizontalalignment='right',
+                                            verticalalignment='bottom',
+                                            fontsize=6, color='black',
+                                            transform=axarr_1[subplot_index].transAxes)
                 # maximum value that was plotted, excluding prediction values
-                axarr_1[axis_index].text(0.99, 0.99,
-                                         '{:0.2f}'.format(np.max(future)),
-                                         horizontalalignment='right',
-                                         verticalalignment='top',
-                                         fontsize=6, color='black',
-                                         transform=axarr_1[axis_index].transAxes)
+                axarr_1[subplot_index].text(0.99, 0.99,
+                                            '{:0.2f}'.format(np.max(future)),
+                                            horizontalalignment='right',
+                                            verticalalignment='top',
+                                            fontsize=6, color='black',
+                                            transform=axarr_1[subplot_index].transAxes)
                 if is_training_data:
-                    axarr_1[axis_index].set_facecolor('#ecffe6')  # light green
+                    axarr_1[subplot_index].set_facecolor(
+                        '#ecffe6')  # light green
                 else:
-                    axarr_1[axis_index].set_facecolor('#e6f9ff')  # light blue
+                    axarr_1[subplot_index].set_facecolor(
+                        '#e6f9ff')  # light blue
 
     def plot_predictions(self,
                          predictions,
-                         data,
+                         raw_target,
                          indices,
                          input_seq_length,
                          target_seq_length,
@@ -335,15 +330,17 @@ class FigureManager:
             output_start = input_end - 1
             output_end = output_start + target_seq_length
 
-            # historical ground-truth values
-            show = int(target_seq_length * 1.5)
-            cols = data[input_end + 1 - show:input_end + 1, :4]
-            previous = (np.sum(cols, axis=1)) / 4.0
+            # historical ground-truth values visualization window
+            show = int(target_seq_length)
+            start_index = input_end + 1 - show
+            end_index = input_end + 1
+            previous = raw_target[start_index:end_index]
 
-            # future ground-truth values
-            show = int(target_seq_length * 1.5)
-            cols = data[input_end + 1:output_end + show, :4]
-            future = (np.sum(cols, axis=1)) / 4.0
+            # future ground-truth values visualization window
+            show = int(target_seq_length * 1.4)
+            start_index = input_end + 1
+            end_index = output_end + show
+            future = raw_target[start_index:end_index]
 
             # prediction values
             prediction_vals = []
@@ -354,12 +351,11 @@ class FigureManager:
             prediction_vals = np.squeeze(prediction_vals)
 
             # plot each prediction figure
-            self._plot_prediction(previous=previous,
-                                  future=future,
-                                  actual=future[:target_seq_length],
-                                  predicted=prediction_vals,
-                                  axis_index=i,
-                                  is_training_data=is_training_data)
+            self._plot_subplot(previous=previous,
+                               future=future,
+                               predicted=prediction_vals,
+                               subplot_index=i,
+                               is_training_data=is_training_data)
         self.draw_predictions()
 
     def get_num_train_figs(self):
@@ -376,13 +372,13 @@ class FigureManager:
         """Refreshes predictions figure.
         """
         self.fig_1.canvas.draw()
-        plt.pause(0.01)
+        plt.pause(0.1)
 
     def draw_stats(self):
         """Refreshes stats figure.
         """
         self.fig_2.canvas.draw()
-        plt.pause(0.01)
+        plt.pause(0.1)
 
     def save(self, directory, filename):
         """Saves all figures as one PDF.

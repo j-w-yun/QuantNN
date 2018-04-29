@@ -33,7 +33,6 @@ class Poloniex(Cacheable):
 
                 # HTTP not OK or Poloniex error
                 while not r.ok or 'message' in r.json():
-                    print('Poloniex | {}'.format(r.json()['message']))
                     time.sleep(3 * retries)
                     r = requests.get(
                         self.url + path, params=payload, timeout=self.timeout)
