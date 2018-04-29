@@ -23,7 +23,7 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio):
 
     # start date of data
     start = {'year': 2016,
-             'month': 8,
+             'month': 12,
              'day': 1,
              'hour': 0,
              'minute': 0}
@@ -99,7 +99,7 @@ def fetch_data(input_seq_length, target_seq_length, train_ratio):
 TRAIN_RATIO = 0.97
 
 # moving window size for each train/test example
-INPUT_SEQ_LEN = 30
+INPUT_SEQ_LEN = 35
 TARGET_SEQ_LEN = 5
 
 # fetch data
@@ -115,17 +115,17 @@ INPUT_DEPTH = train.input_depth
 TARGET_DEPTH = train.target_depth
 
 # feature-extractor CNN architecture
-KERNEL_SIZES = [3, 3]
+KERNEL_SIZES = [5, 5]
 KERNEL_FILTERS = [64, 64]
 CNN_OUTPUT_SIZE = 512
 
 # encoder-decoder RNN architecture
 NUM_UNITS = 512
-NUM_LAYERS = 6
+NUM_LAYERS = 4
 
 # dropout and sampling probabilities
-RNN_KEEP_PROB = 0.80
-SAMPLING_PROB = 0.10
+RNN_KEEP_PROB = 0.90
+SAMPLING_PROB = 0.00
 
 # training epochs and size of mini-batches
 EPOCHS = 1000
@@ -151,7 +151,7 @@ EVAL_EVERY = 200
 # and test data to show training progress and predictive performance in
 # figures. this number is the frequency at which such calculations occur,
 # after SHOW_EVERY number of training steps
-SHOW_EVERY = 50
+SHOW_EVERY = 20
 
 
 #=========================================================================
@@ -304,7 +304,7 @@ def train_model(model_id, model_filename=None):
     # begin training
     for epoch in range(EPOCHS + 1):
 
-        # shuffle training data
+        # shuffle training data indices
         shuffle = np.random.permutation(range(NUM_TRAIN))
 
         # time data preparation pipeline in python
@@ -313,22 +313,22 @@ def train_model(model_id, model_filename=None):
         # mini-batch
         for train_batch in range(NUM_TRAIN_BATCH):
 
-            # start and end indices for current batch
+            # start and end indices of shuffled data indices for mini-batch
             train_start_index = train_batch * BATCH_SIZE
             train_end_index = train_start_index + BATCH_SIZE - 1
             train_end_index = min(train_end_index, NUM_TRAIN - 1)
 
-            # get sliding windows
+            # get mini-batch from shuffled indices
             x, y = train.get_example_set(
                 shuffle[train_start_index:train_end_index])
 
-            # run a train step
+            # run a mini-batch train step
             feed_dict = {input_sequence: x,
                          target_sequence: y,
                          rnn_keep_prob: RNN_KEEP_PROB,
                          sampling_prob: SAMPLING_PROB}
             ops = [train_op, cost]
-
+            # time CPU data prep and GPU computation
             start_time = time.time()
             delta_time_1 = start_time - last_time
             _, train_cost = sess.run(ops, feed_dict=feed_dict)

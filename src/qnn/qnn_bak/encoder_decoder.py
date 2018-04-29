@@ -1,3 +1,4 @@
+from tensorflow.contrib.rnn.python.ops.rnn_cell import LayerNormLSTMCell
 from tensorflow.python.layers.core import Dense
 
 import tensorflow as tf
@@ -73,10 +74,14 @@ class EncoderDecoder:
         """Create an RNN cell.
         """
 #         single_cell = tf.nn.rnn_cell.LSTMCell(num_units)
-        single_cell = tf.nn.rnn_cell.GRUCell(num_units)
 #         single_cell = rnn_cell.NASCell(num_units)
-#         single_cell = tf.contrib.rnn.LayerNormLSTMCell(
-#             num_units, layer_norm=True)
+
+#         if layer_index % 2 == 0:
+#             single_cell = LayerNormLSTMCell(num_units, layer_norm=True)
+#         else:
+#             single_cell = tf.nn.rnn_cell.GRUCell(num_units)
+
+        single_cell = tf.nn.rnn_cell.GRUCell(num_units)
 
         single_cell = tf.nn.rnn_cell.DropoutWrapper(
             cell=single_cell, input_keep_prob=keep_prob)
