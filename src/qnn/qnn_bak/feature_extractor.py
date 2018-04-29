@@ -175,7 +175,7 @@ class CryptoFeatureExtractorController:
                 name='dense_bias')
             dense_activation = tf.nn.leaky_relu(
                 tf.matmul(extracted_features, dense_weight) + dense_bias,
-                alpha=0.1)
+                alpha=0.01)
 
         # check final output shape
         print('Feature-extractor output shape : {}\n'.format(
@@ -256,6 +256,16 @@ class FeatureExtractor:
         # reshape input for convolution
         x = tf.reshape(input_ph, [-1, self.input_length, self.input_depth, 1])
 
+        # 1,0-normalize along the sequence time axis
+        min_ = tf.expand_dims(tf.reduce_min(x, 1), 1)
+        max_ = tf.expand_dims(tf.reduce_max(x, 1), 1)
+        x_norm = tf.div(
+            tf.subtract(x, min_),
+            tf.maximum(  # avoid div by zero
+                tf.subtract(max_, min_),
+                tf.constant(1e-9)))
+
+        # apply convolutional layers
         last_filter = None
         last_activation = None
         layer_index = 1
@@ -265,16 +275,20 @@ class FeatureExtractor:
                 with tf.name_scope('conv1'):
                     kernel = _get_kernel(
                         shape=[k_size, self.size_of_set, 1, k_filter],
-                        name='kernel_{}'.format(layer_index))
+                        name='kernel_1')
                     bias = _get_bias(
                         shape=[k_filter],
-                        name='bias_{}'.format(layer_index))
+                        name='bias_1')
                     conv = tf.nn.conv2d(
-                        input=x,
+                        input=x_norm,
                         filter=kernel,
                         strides=[1, 1, self.size_of_set, 1],
-                        padding='VALID')  # no padding
-                    last_activation = tf.nn.leaky_relu(conv + bias, alpha=0.1)
+                        padding='VALID',  # no padding
+                        name='convolution_1')
+                    last_activation = tf.nn.leaky_relu(
+                        features=(conv + bias),
+                        alpha=0.01,
+                        name='activation_1')
             else:
                 # subsequent convolutional layers
                 with tf.name_scope('conv2'):
@@ -288,8 +302,12 @@ class FeatureExtractor:
                         input=last_activation,
                         filter=kernel,
                         strides=[1, 1, 1, 1],
-                        padding='VALID')  # no padding
-                    last_activation = tf.nn.leaky_relu(conv + bias, alpha=0.1)
+                        padding='VALID',  # no padding
+                        name='convolution_{}'.format(layer_index))
+                    last_activation = tf.nn.leaky_relu(
+                        features=(conv + bias),
+                        alpha=0.01,
+                        name='activation_{}'.format(layer_index))
 
             # check shapes
             print('{} conv_{} shape : {}'.format(
