@@ -4,7 +4,7 @@
 - [traintest_seq2seq_model] finish writing code to compute performance metrics on model performance on the test set.
 
 ### core
-- Allow writing/restoring only parameter *values* to/from dict rather than all parameter information (such as value bounds and parameter type).
+- Allow writing/restoring only parameter *values* to/from dict rather than all parameter information (such as value bounds and parameter type). Clarify?
 - Restore model without defining graph for real-time predictions: (https://blog.metaflow.fr/tensorflow-saving-restoring-and-mixing-multiple-models-c4c94d5d7125) (https://www.tensorflow.org/programmers_guide/saved_model)
 
 ### ML
@@ -21,6 +21,7 @@
 
 ### data
 - Save normalizing factors (z-score: mean, var; truncate: stddev) that were used to normalize the training dataset so that we need not fetch the entire training data to normalize recent data during real-time predictions.
+- Implement a fast read-from/write-to-disk database that can append new values to the end of file (or create a larger file). Use numpy.memmap with offsets? (in that case, last recorded index must be prepended to the same file or written to a separate file that is read first)
 
 ### trading
 - Record recent orderbook data & trade data for exchanges that will be used for trading. This record will be used to calculate statistics of trades, such as:
