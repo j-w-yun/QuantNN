@@ -4,7 +4,6 @@
 - [traintest_seq2seq_model] finish writing code to compute performance metrics on model performance on the test set.
 
 ### core
-- Allow writing/restoring only parameter *values* to/from dict rather than all parameter information (such as value bounds and parameter type). Clarify?
 - Restore model without defining graph for real-time predictions: (https://blog.metaflow.fr/tensorflow-saving-restoring-and-mixing-multiple-models-c4c94d5d7125) (https://www.tensorflow.org/programmers_guide/saved_model)
 
 ### ML
