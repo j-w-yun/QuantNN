@@ -3,7 +3,8 @@ if TYPE_CHECKING:
     from qnn.market import Market, Timeframe, Symbol
 
 from qnn.core.ranges import TimestampRange
-from qnn.core.parameters import ParametersNode
+from qnn.core.parameters import ParametersNode, get_parameters_template
+from qnn.targets.seq import SEQ_TARGETS_MAP
 
 
 class Seq2SeqProblem(object):
@@ -62,17 +63,20 @@ class Seq2SeqProblem(object):
             'train_range': self._train_range.to_dict(),
             'test_range': self._test_range.to_dict(),
             'target_name': self._target_name,
-            'target_parameters': self._target_parameters.to_dict(),
+            'target_parameters': self._target_parameters.to_values_dict(),
             'target_seqlen': self._target_seqlen,
         }
 
     @staticmethod
     def from_dict(market: 'Market', d: dict) -> 'Seq2SeqProblem':
+        target_parameters = get_parameters_template(SEQ_TARGETS_MAP[d['target_name']])
+        target_parameters.update_from_values_dict(d['target_parameters'])
+
         return Seq2SeqProblem(market.timeframes_by_name[d['timeframe']],
                               [market.symbols_by_name[s] for s in d['symbols']],
                               [market.symbols_by_name[s] for s in d['target_symbols']],
                               TimestampRange.from_dict(d['train_range']),
                               TimestampRange.from_dict(d['test_range']),
                               d['target_name'],
-                              ParametersNode.from_dict(d['target_parameters']),
+                              target_parameters,
                               int(d['target_seqlen']))

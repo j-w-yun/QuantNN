@@ -10,7 +10,7 @@ import numpy as np
 
 from qnn import settings
 from qnn.core.serialization import load_dict_from_yaml_file
-from qnn.core.parameters import ParametersNode
+from qnn.core.parameters import ParametersNode, get_parameters_template
 from qnn.core.datetime import find_index_range
 from qnn.problems import Seq2SeqProblem
 from qnn.market.utilities import create_market_from_file
@@ -38,7 +38,8 @@ def main():
     problem_info = load_dict_from_yaml_file(os.path.join('problems', 'seq2seq', problem_name + '.yaml'))
     problem = Seq2SeqProblem.from_dict(market, problem_info)
 
-    target = SEQ_TARGETS_MAP[problem.target_name](problem.target_parameters, problem.target_symbols[0], problem.target_seqlen)
+    Target = SEQ_TARGETS_MAP[problem.target_name]
+    target = Target(problem.target_parameters, problem.target_symbols[0], problem.target_seqlen)
 
     # Load data required by problem
     logger.info('Loading data...')
@@ -57,7 +58,10 @@ def main():
     # Create ML model
     logger.info('Creating model...')
     model_info = load_dict_from_yaml_file(os.path.join('models', 'seq', model_name + '.yaml'))
-    model = SEQ_MODELS_MAP[model_info['model']](ParametersNode.from_dict(model_info), target, problem.timeframe, problem.symbols)
+    Model = SEQ_MODELS_MAP[model_info['model']]
+    model_parameters = get_parameters_template(Model)
+    model_parameters.update_from_values_dict(model_info)
+    model = Model(model_parameters, target, problem.timeframe, problem.symbols)
 
     # Train model
     logger.info('Fitting model...')

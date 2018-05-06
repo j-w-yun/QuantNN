@@ -16,7 +16,7 @@ def main():
     logging.info('Writing seq model defaults...')
     for model_name, Model in SEQ_MODELS_MAP.items():
         logging.debug('Writing seq model defaults for "%s"...' % model_name)
-        dict_to_yaml_file(os.path.join('models', 'seq', model_name + '.yaml'), {'model': model_name, **Model.get_parameters_template().to_dict()})
+        dict_to_yaml_file(os.path.join('models', 'seq', model_name + '.yaml'), {'model': model_name, **Model.get_parameters_template().to_values_dict()})
 
     logging.info('Done!')
 
