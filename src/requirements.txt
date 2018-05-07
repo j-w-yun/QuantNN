@@ -2,4 +2,8 @@ pandas
 numpy
 tensorflow
 pyyaml
+requests
+
+# Testing
+nose
 

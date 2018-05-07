@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Type
 from abc import ABC, ABCMeta, abstractmethod
+import copy
 
 PARAMETER_TYPES: Dict[str, Type['IParameter']] = {}
 
@@ -28,6 +29,16 @@ class ParametersNode(object):
 
         self.__parameters[key] = value
 
+    def to_values_dict(self) -> dict:
+        return {
+            'parameters': {k: v.to_value() for k, v in self.__parameters.items()},
+        }
+
+    def update_from_values_dict(self, d):
+        for k, v in d['parameters'].items():
+            if k in self.__parameters:
+                self.__parameters[k].update_from_value(v)
+
     def to_dict(self) -> dict:
         return {
             'parameters': {k: {'_type': v.__class__.__name__, **v.to_dict()} for k, v in self.__parameters.items()},
@@ -46,6 +57,14 @@ class IParameter(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def to_value(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_from_value(self, v):
+        raise NotImplementedError
+
+    @abstractmethod
     def to_dict(self) -> dict:
         raise NotImplementedError
 
@@ -60,6 +79,12 @@ class IntParameter(IParameter):
         super().__init__()
 
         self.v = v
+
+    def to_value(self):
+        return self.v
+
+    def update_from_value(self, v):
+        self.v = int(v)
 
     def to_dict(self) -> dict:
         return {
@@ -76,6 +101,12 @@ class FloatParameter(IParameter):
         super().__init__()
 
         self.v = v
+
+    def to_value(self):
+        return self.v
+
+    def update_from_value(self, v):
+        self.v = float(v)
 
     def to_dict(self) -> dict:
         return {
@@ -99,6 +130,19 @@ class ModelChoiceParameter(IParameter):
     def parameters(self):
         return self.choices[self.v]
 
+    def to_value(self):
+        return {
+            'v': self.v,
+            'choices': {k: v.to_values_dict() for k, v in self.choices.items()},
+        }
+
+    def update_from_value(self, v):
+        self.v = v['v']
+
+        for k, d in v['choices'].items():
+            if k in self.choices:
+                self.choices[k].update_from_values_dict(d)
+
     def to_dict(self) -> dict:
         return {
             'v': self.v,
@@ -117,6 +161,22 @@ class ModelChoiceParameter(IParameter):
         else:
             initialv = list(map.keys())[0] if len(map.keys()) != 0 else ''
         return ModelChoiceParameter(initialv, {k: v.get_parameters_template() for k, v in map.items()}, allow_empty)
+
+
+
+__PARAMETERS_TEMPLATE_CACHE = {}
+
+
+def get_parameters_template(Class):
+    global __PARAMETERS_TEMPLATE_CACHE
+
+    try:
+        return copy.deepcopy(__PARAMETERS_TEMPLATE_CACHE[Class])
+
+    except KeyError:
+        pt = Class.get_parameters_template()
+        __PARAMETERS_TEMPLATE_CACHE = pt
+        return copy.deepcopy(pt)
 
 
 register_parameter_type(IntParameter)

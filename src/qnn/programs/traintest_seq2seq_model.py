@@ -6,9 +6,11 @@ import os
 import sys
 import logging
 
+import numpy as np
+
 from qnn import settings
 from qnn.core.serialization import load_dict_from_yaml_file
-from qnn.core.parameters import ParametersNode
+from qnn.core.parameters import ParametersNode, get_parameters_template
 from qnn.core.datetime import find_index_range
 from qnn.problems import Seq2SeqProblem
 from qnn.market.utilities import create_market_from_file
@@ -36,7 +38,8 @@ def main():
     problem_info = load_dict_from_yaml_file(os.path.join('problems', 'seq2seq', problem_name + '.yaml'))
     problem = Seq2SeqProblem.from_dict(market, problem_info)
 
-    target = SEQ_TARGETS_MAP[problem.target_name](problem.target_parameters, problem.target_symbols[0], problem.target_seqlen)
+    Target = SEQ_TARGETS_MAP[problem.target_name]
+    target = Target(problem.target_parameters, problem.target_symbols[0], problem.target_seqlen)
 
     # Load data required by problem
     logger.info('Loading data...')
@@ -50,11 +53,15 @@ def main():
     # Find index ranges for train and test sets
     train_index_range = find_index_range(market_data_table.index, problem.train_range)
     test_index_range = find_index_range(market_data_table.index, problem.test_range)
+    test_index_range.end -= problem.target_seqlen
 
     # Create ML model
     logger.info('Creating model...')
     model_info = load_dict_from_yaml_file(os.path.join('models', 'seq', model_name + '.yaml'))
-    model = SEQ_MODELS_MAP[model_info['model']](ParametersNode.from_dict(model_info), target, problem.timeframe, problem.symbols)
+    Model = SEQ_MODELS_MAP[model_info['model']]
+    model_parameters = get_parameters_template(Model)
+    model_parameters.update_from_values_dict(model_info)
+    model = Model(model_parameters, target, problem.timeframe, problem.symbols)
 
     # Train model
     logger.info('Fitting model...')
@@ -65,16 +72,24 @@ def main():
     predictions_map = model.predict(data, test_index_range)
     predictions = [predictions_map[k] for k in target.output_keys]
 
-    for i in range(test_index_range.begin, test_index_range.end):
+    rmse_mean = 0.0
+    rmse_n = 0
+    for prediction_index, i in enumerate(range(test_index_range.begin, test_index_range.end)):
         targets = target.generate_target(market_data_table, i)
 
-        for prediction, target_seq, target_key in zip(predictions, targets, target.output_keys):
-            predicted_seq = prediction[i]
+        for prediction, target_seq, target_key, target_output_shape in zip(predictions, targets, target.output_keys, target.output_shapes):
+            predicted_seq = prediction[prediction_index]
 
-            # TODO
-            pass
+            # Turn target into numpy array
+            target_seq = np.reshape(target_seq, newshape=target_output_shape)
 
-        # TODO
+            # Compute rmse for this sequence forecast
+            rmse = np.sqrt((predicted_seq - target_seq) ** 2).mean()
+
+            rmse_mean += rmse
+            rmse_n += 1
+
+    print('Test set RMSE (using mean of all targets and predictions): %g (n=%d)' % ((rmse_mean / rmse_n), rmse_n))
 
 
 if __name__ == '__main__':

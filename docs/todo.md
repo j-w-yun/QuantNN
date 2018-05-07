@@ -5,7 +5,6 @@
 - [traintest_seq2seq_model] finish writing code to compute performance metrics on model performance on the test set.
 
 ### core
-- Allow writing/restoring only parameter *values* to/from dict rather than all parameter information (such as value bounds and parameter type). Clarify?
 - Restore model without defining graph for real-time predictions: (https://blog.metaflow.fr/tensorflow-saving-restoring-and-mixing-multiple-models-c4c94d5d7125) (https://www.tensorflow.org/programmers_guide/saved_model)
 
 ### ML
@@ -39,6 +38,4 @@
 - Implement a fast thread-safe database that can append new data.
 
 ### trading
-- Record recent orderbook data & trade data for exchanges that will be used for trading. This record will be used to calculate statistics of trades, such as:
-	- Slippage statistics of limit buy and sell
-	- Slippage statistics of market buy and sell
+- Record recent orderbook data & trade data for exchanges that will be used for trading.
