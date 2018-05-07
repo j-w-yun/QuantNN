@@ -1,5 +1,6 @@
 # QuantNN TODO
 ## Code
+
 ### programs
 - [traintest_seq2seq_model] finish writing code to compute performance metrics on model performance on the test set.
 
@@ -20,11 +21,24 @@
 - Write socket server.
 
 ### data
-- Save normalizing factors (z-score: mean, var; truncate: stddev) that were used to normalize the training dataset so that we need not fetch the entire training data to normalize recent data during real-time predictions.
-- Implement a fast read-from/write-to-disk database that can append new values to the end of file (or create a larger file). Use numpy.memmap with offsets? (in that case, last recorded index must be prepended to the same file or written to a separate file that is read first)
+- Required data:
+	1. CEXIO 1-min chart data or trade data
+	2. GDAX 1-min chart data
+	3. KRAKEN trade data
+	4. POLONIEX trade data
+	
+- Optional data:
+	1. BITFINEX 1-min chart data (rate limited)
+	2. ETHEREUM BLOCKCHAIN data (need a way to track ERC20 token transfers)
+	3. BINANCE 1-min chart data (starts at Jan 2018, with gaps during mid Feb)
+	4. WAVES 1-min chart data (low volume)
+	5. BLINKTRADE trade data (low volume; foreign exchanges)
+	6. BTCC 1-min chart data (low volume; this Chinese-based exchange was shut down recently)
+
+- Save normalizing factors (z-score: mean, std; truncate: mean, std) and scaling factors (scaling log-ratio to avoid rounding too much via float32 operations) used on training data to normalize inference data.
+- Implement a fast thread-safe database that can append new data.
 
 ### trading
 - Record recent orderbook data & trade data for exchanges that will be used for trading. This record will be used to calculate statistics of trades, such as:
-	- Mean and standard deviation of post-only order fill time
-	- Mean and standard deviation of 'slippage' of re-posting to changed mid-market price ASAP
-	- Mean and standard deviation of slippage of immediate buy/sell at mid-market price
+	- Slippage statistics of limit buy and sell
+	- Slippage statistics of market buy and sell
