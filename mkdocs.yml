@@ -17,6 +17,7 @@ pages:
 - Changelog: 'changelog.md'
 - Reference:
     - Overview: 'reference/overview.md'
+    - Guide to structure: 'reference/guide_to_structure.md'
     - Python code: 'reference/python_code/overview.md'
 
 markdown_extensions:
@@ -44,4 +45,3 @@ markdown_extensions:
     - pymdownx.tasklist(custom_checkbox=true)
     - pymdownx.tilde
 extra_javascript: ['https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML','mathjaxhelper.js']
-

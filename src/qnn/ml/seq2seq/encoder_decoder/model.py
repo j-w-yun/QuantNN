@@ -12,6 +12,7 @@ from qnn.core.parameters import ParametersNode, IntParameter, FloatParameter, Mo
 from qnn.nn.networks import Network
 from qnn.nn.optimizers import NN_OPTIMIZERS_MAP
 from qnn.nn.util import get_num_params
+from qnn.ml.data_provider import IMLDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -54,27 +55,29 @@ class EncoderDecoderModel(ISeq2SeqModel):
         self._learning_rate_decay_epochs = self.parameters['learning_rate_decay_epochs'].v
         self._batch_size = self.parameters['batch_size'].v
 
-    def fit(self,
-            inputs: Dict[str, np.ndarray], targets: Dict[str, np.ndarray],
-            val_inputs: Dict[str, np.ndarray]=None, val_targets: Dict[str, np.ndarray]=None) -> None:
+    def _fit(self, training_data_provider: IMLDataProvider = None):
         from .network import EncoderDecoderNetwork
 
-        if len(inputs) != 1:
+        if len(training_data_provider.input_shapes) != 1:
             raise RuntimeError("This model only works with exactly 1 input")
 
-        if len(targets) != 1:
+        if len(training_data_provider.target_shapes) != 1:
             raise RuntimeError("This model only works with exactly 1 target")
 
-        input = list(inputs.values())[0]
-        target = list(targets.values())[0]
-        self._target_key = list(targets.keys())[0]
-        val_target = list(val_targets.values())[0] if val_targets is not None else None
+        input_shape = list(training_data_provider.input_shapes.values())[0]
+        target_shape = list(training_data_provider.target_shapes.values())[0]
+        #target = list(targets.values())[0]
+        self._target_key = list(training_data_provider.target_shapes.keys())[0]
+        #val_target = list(val_targets.values())[0] if val_targets is not None else None
 
-        input_seq_len, input_depth = input.shape[1], input.shape[2]
-        target_seq_len, target_depth = target.shape[1], target.shape[2]
+        input_seq_len, input_depth = input_shape[0], input_shape[1]
+        target_seq_len, target_depth = target_shape[0], target_shape[1]
         self._target_seq_len, self._target_depth = target_seq_len, target_depth
 
-        num_train = input.shape[0]
+        inputs, targets = training_data_provider.get_training_samples(list(range(training_data_provider.num_training_samples)))
+        val_inputs, val_targets = training_data_provider.get_val_samples(list(range(training_data_provider.num_val_samples)))
+
+        num_train = training_data_provider.num_training_samples
         num_train_batches = int(np.ceil(num_train / self._batch_size))
 
         learning_rate_decay_steps = num_train_batches * self._learning_rate_decay_epochs
@@ -88,13 +91,13 @@ class EncoderDecoderModel(ISeq2SeqModel):
             self._network = Network(self._sess)
 
             self._input_placeholders = {}
-            for k, v in inputs.items():
-                self._input_placeholders[k] = self._network.create_placeholder((None, *v.shape[1:]), str(k))
+            for k, v in training_data_provider.input_shapes.items():
+                self._input_placeholders[k] = self._network.create_placeholder((None, *v), str(k))
             input_sequence = list(self._input_placeholders.values())[0]
 
             self._target_placeholders = {}
-            for k, v in targets.items():
-                self._target_placeholders[k] = self._network.create_placeholder((None, *v.shape[1:]), str(k))
+            for k, v in training_data_provider.target_shapes.items():
+                self._target_placeholders[k] = self._network.create_placeholder((None, *v), str(k))
             target_sequence = list(self._target_placeholders.values())[0]
 
             self._output_keep_prob_placeholder = self._network.create_placeholder((), 'output_keep_prob')
@@ -176,7 +179,7 @@ class EncoderDecoderModel(ISeq2SeqModel):
                 self._network.extra_values = extra_values_test
 
                 if val_inputs is not None:
-                    val_loss = self._network.test(val_inputs, val_target)
+                    val_loss = self._network.test(val_inputs, val_targets[self._target_key])
                 else:
                     val_loss = math.nan
                 val_loss_list.append(val_loss)
@@ -187,7 +190,7 @@ class EncoderDecoderModel(ISeq2SeqModel):
 
                 # TODO: create plot file
 
-            self._network.fit(inputs, target, self._epochs, val_inputs, val_target,
+            self._network.fit(inputs, targets[self._target_key], self._epochs, val_inputs, val_targets[self._target_key],
                               train_step_callbacks=[on_train_step], val_step_callbacks=[on_val_step], eval_interval=num_train_batches)
 
             self._network.extra_values = extra_values_test

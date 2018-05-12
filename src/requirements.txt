@@ -1,9 +1,10 @@
 pandas
 numpy
 tensorflow
+keras
+sklearn
 pyyaml
 requests
 
 # Testing
 nose
-

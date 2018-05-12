@@ -1,0 +1,16 @@
+model: QNNRegressor1
+parameters:
+  input_sequence_length: 31
+  ml_model:
+    choices:
+      KerasLSTM1:
+        parameters:
+          batch_size: 32
+          clipnorm: 1.0
+          dense_dim: 1024
+          epochs: 10
+          learning_rate: 0.001
+          lstm_units: 64
+          num_dense_layers: 3
+    v: KerasLSTM1
+  val_split: 0.05

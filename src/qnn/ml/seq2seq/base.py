@@ -6,6 +6,7 @@ import numpy as np
 
 from qnn.core.parameters import ParametersNode
 from qnn.core import EventHook
+from ..data_provider import IMLDataProvider, CachedTrainingDataProvider
 
 
 class ISeq2SeqModel(object):
@@ -23,12 +24,25 @@ class ISeq2SeqModel(object):
     def parameters(self) -> ParametersNode:
         return self._parameters
 
-    @abstractmethod
     def fit(self,
-            inputs: Dict[str, np.ndarray], targets: Dict[str, np.ndarray],
-            val_inputs: Dict[str, np.ndarray] = None, val_targets: Dict[str, np.ndarray] = None) -> None:
+            inputs: Dict[str, np.ndarray]=None, targets: Dict[str, np.ndarray]=None,
+            val_inputs: Dict[str, np.ndarray]=None, val_targets: Dict[str, np.ndarray]=None,
+            training_data_provider: IMLDataProvider=None) -> None:
+        if training_data_provider is None:
+            training_data_provider = CachedTrainingDataProvider(inputs, targets, val_inputs, val_targets)
+
+        return self._fit(training_data_provider)
+
+    @abstractmethod
+    def _fit(self, training_data_provider: IMLDataProvider=None):
         raise NotImplementedError
 
     @abstractmethod
     def predict(self, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        raise NotImplementedError
+
+    def save_state(self, folder_path: str):
+        raise NotImplementedError
+
+    def restore_state(self, folder_path: str):
         raise NotImplementedError

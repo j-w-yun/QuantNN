@@ -1,12 +1,14 @@
 """
-Train and test a seq2seq ML model on a seq2seq problem.
+Train and test a seq2seq model on a seq2seq problem.
 """
 
 import os
 import sys
 import logging
+import math
 
 import numpy as np
+from sklearn import metrics
 
 from qnn import settings
 from qnn.core.serialization import load_dict_from_yaml_file
@@ -17,6 +19,7 @@ from qnn.market.utilities import create_market_from_file
 from qnn.targets.seq import SEQ_TARGETS, SEQ_TARGETS_MAP
 from qnn.models.seq import SEQ_MODELS, SEQ_MODELS_MAP
 from qnn.market.data.utilities import load_symbols_bardata, create_market_data_table
+from qnn.core.confusion_matrix import ConfusionMatrix
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +77,9 @@ def main():
 
     rmse_mean = 0.0
     rmse_n = 0
+    cm_first = ConfusionMatrix()
+    first_predictions = []
+    first_targets = []
     for prediction_index, i in enumerate(range(test_index_range.begin, test_index_range.end)):
         targets = target.generate_target(market_data_table, i)
 
@@ -83,12 +89,29 @@ def main():
             # Turn target into numpy array
             target_seq = np.reshape(target_seq, newshape=target_output_shape)
 
+            first_predictions.append(predicted_seq[0])
+            first_targets.append(target_seq[0])
+
+            # Update confusion matrix
+            if predicted_seq[0] > 0.0:
+                if target_seq[0] > 0.0:
+                    cm_first.tp += 1
+                else:
+                    cm_first.fp += 1
+            else:
+                if target_seq[0] <= 0.0:
+                    cm_first.tn += 1
+                else:
+                    cm_first.fn += 1
+
             # Compute rmse for this sequence forecast
             rmse = np.sqrt((predicted_seq - target_seq) ** 2).mean()
 
             rmse_mean += rmse
             rmse_n += 1
 
+    print('Test set first predictions metrics: rmse=%.4f mse=%.4f, r2=%.4f' % (math.sqrt(metrics.mean_squared_error(first_targets, first_predictions)), metrics.mean_squared_error(first_targets, first_predictions), metrics.r2_score(first_targets, first_predictions)))
+    print('Test set CM: actual_positives_ratio=%.4f, prec=%.4f (n=%d), acc=%.2f%%, n=%d' % (cm_first.actual_positives_ratio, cm_first.precision, cm_first.precision_n, cm_first.accuracy * 100.0, cm_first.n))
     print('Test set RMSE (using mean of all targets and predictions): %g (n=%d)' % ((rmse_mean / rmse_n), rmse_n))
 
 

@@ -7,6 +7,7 @@ units:
  BCN: {id: 1}
  BTC: {id: 2}
  AMP: {id: 3}
+ ETH: {id: 4}
 
 exchanges:
   poloniex:
@@ -14,4 +15,4 @@ exchanges:
     symbols:
       POLO.BCN_BTC: {id: 1, base_unit: 'BCN', counter_unit: 'BTC'}
       POLO.AMP_BTC: {id: 2, base_unit: 'AMP', counter_unit: 'BTC'}
-
+      POLO.ETH_BTC: {id: 3, base_unit: 'ETH', counter_unit: 'BTC'}

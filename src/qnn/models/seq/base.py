@@ -48,3 +48,9 @@ class ISeqModel(object):
     @abstractmethod
     def predict(self, market_data_tables: Dict[str, 'MarketDataTable'], index_range: 'IndexRange') -> Dict[str, np.ndarray]:
         raise NotImplementedError
+
+    def save_state(self, folder_path: str):
+        raise NotImplementedError
+
+    def restore_state(self, folder_path: str):
+        raise NotImplementedError
