@@ -125,8 +125,9 @@ class BinaryDataFile(object):
 
         if self._range.begin is None:
             self._range.begin = dt
-        else:
-            assert dt > self._range.begin
+
+        if self._range.end is not None:
+            assert dt >= self._range.end
 
         self._range.end = dt
 
@@ -160,7 +161,7 @@ class BinaryDataFile(object):
                 with open(filepath, 'rb') as f:
                     bytes = f.read(self._size)
                     if bytes == b'':
-                        return
+                        break
 
                     data = struct.unpack(self._format, bytes)
                     dt = datetime.datetime.utcfromtimestamp(data[0] / 1000).replace(tzinfo=pytz.UTC)
